@@ -120,17 +120,25 @@
         font-size: 14px;
       }
 
-      .btn-cas {
+      .btn-google {
         width: 100%;
-        background: #c41e3a;
+        background: #4285f4;
         color: white;
         padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
       }
 
-      .btn-cas:hover {
-        background: #a01a33;
+      .btn-google:hover {
+        background: #3367d6;
         transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(196, 30, 58, 0.3);
+        box-shadow: 0 8px 20px rgba(66, 133, 244, 0.3);
+      }
+
+      .btn-google i {
+        font-size: 18px;
       }
 
       @media (max-width: 500px) {
@@ -167,9 +175,10 @@
 
       <div class="divider">or</div>
 
-      <a href="http://localhost:3000/api/auth/cas" class="btn btn-cas"
-        >Log in with Rutgers CAS</a
-      >
+      <a href="http://localhost:3000/api/auth/google" class="btn btn-google">
+        <i class="fab fa-google"></i>
+        Log in with Google
+      </a>
     </div>
   </body>
 </html>

@@ -1,649 +1,780 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LLM Dashboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-Po1jb+oIEuwxJljeycd28PNldfWqOKISnVP6L7V645e3JnY8b1gn3aDLS0C4dxjnuRhgkC07jlBAX6zskMXKAA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      integrity="sha512-Po1jb+oIEuwxJljeycd28PNldfWqOKISnVP6L7V645e3JnY8b1gn3aDLS0C4dxjnuRhgkC07jlBAX6zskMXKAA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f0f4f8;
-            min-height: 100vh;
-            padding: 20px;
-        }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, sans-serif;
+        background: #f0f4f8;
+        min-height: 100vh;
+        padding: 20px;
+      }
 
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: #ffffff;
-            border-radius: 24px;
-            box-shadow: 0 18px 50px rgba(20, 30, 60, 0.09);
-            overflow: hidden;
-        }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 24px;
+        box-shadow: 0 18px 50px rgba(20, 30, 60, 0.09);
+        overflow: hidden;
+      }
 
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .header h1 {
+        font-size: 32px;
+        font-weight: 600;
+      }
+
+      .user-profile {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .user-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        object-fit: cover;
+      }
+
+      .user-info {
+        text-align: right;
+      }
+
+      .welcome-text {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-bottom: 2px;
+      }
+
+      .user-name {
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .logout-btn {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .logout-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .content {
+        padding: 40px;
+      }
+
+      .section {
+        margin-bottom: 30px;
+      }
+
+      .section h3 {
+        font-size: 18px;
+        color: #333;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      textarea {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: "Courier New", monospace;
+        resize: vertical;
+        transition: all 0.3s ease;
+        min-height: 120px;
+      }
+
+      textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      textarea::placeholder {
+        color: #bbb;
+      }
+
+      .input-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        align-items: flex-start;
+      }
+
+      .submit-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+      }
+
+      .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+      }
+
+      .submit-btn:active {
+        transform: translateY(0);
+      }
+
+      .submit-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      #responseOutput {
+        background: #f8f9fa;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        min-height: 150px;
+        font-family: "Courier New", monospace;
+        font-size: 14px;
+        line-height: 1.6;
+        overflow-y: auto;
+        max-height: 400px;
+        color: #333;
+      }
+
+      #responseOutput em {
+        color: #999;
+        font-style: italic;
+      }
+
+      .loading {
+        color: #667eea;
+        font-weight: 600;
+      }
+
+      .error {
+        color: #e74c3c;
+        background: #fadbd8;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+      }
+
+      .success {
+        color: #27ae60;
+        background: #d5f4e6;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .stat-card {
+        background: #f0f0f0;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+      }
+
+      .stat-label {
+        font-size: 12px;
+        color: #666;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .stat-value {
+        font-size: 24px;
+        color: #333;
+        font-weight: 700;
+        margin-top: 5px;
+      }
+
+      /* Product Review Styles */
+      #productSelect {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: white;
+      }
+
+      #productSelect:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .product-card {
+        background: linear-gradient(135deg, #f5f7ff 0%, #efe9ff 100%);
+        padding: 20px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border-left: 4px solid #667eea;
+      }
+
+      .product-card h4 {
+        color: #667eea;
+        margin-bottom: 8px;
+      }
+
+      .product-card p {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+
+      .rating-display {
+        font-size: 18px;
+        color: #ffa500;
+        font-weight: 600;
+      }
+
+      .review-form {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border: 2px solid #e0e0e0;
+      }
+
+      .review-form h4 {
+        color: #333;
+        margin-bottom: 15px;
+      }
+
+      .form-group {
+        margin-bottom: 15px;
+      }
+
+      .form-group label {
+        display: block;
+        color: #333;
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+
+      .star-rating {
+        font-size: 28px;
+        cursor: pointer;
+        letter-spacing: 5px;
+        display: inline-block;
+      }
+
+      .star {
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+
+      .star:hover {
+        transform: scale(1.2);
+        filter: drop-shadow(0 0 3px rgba(255, 165, 0, 0.5));
+      }
+
+      .rating-feedback {
+        font-size: 12px;
+        color: #999;
+        margin-top: 8px;
+        font-style: italic;
+      }
+
+      #reviewText {
+        width: 100% !important;
+      }
+
+      .review-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .clear-btn {
+        background: #bbb;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .clear-btn:hover {
+        background: #999;
+        transform: translateY(-2px);
+      }
+
+      .reviews-section {
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 15px 0;
+      }
+
+      .reviews-section h4 {
+        color: #333;
+        margin-bottom: 15px;
+      }
+
+      .reviews-list {
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .review-item {
+        border-bottom: 1px solid #eee;
+        padding: 12px 0;
+        margin-bottom: 12px;
+      }
+
+      .review-item:last-child {
+        border-bottom: none;
+      }
+
+      .review-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .review-author {
+        font-weight: 600;
+        color: #333;
+      }
+
+      .review-date {
+        font-size: 12px;
+        color: #999;
+      }
+
+      .review-rating {
+        color: #ffa500;
+        font-size: 16px;
+        margin: 5px 0;
+      }
+
+      .review-text {
+        font-size: 14px;
+        color: #666;
+        margin: 8px 0;
+        line-height: 1.5;
+      }
+
+      .no-reviews {
+        color: #999;
+        font-style: italic;
+        text-align: center;
+        padding: 20px;
+      }
+
+      @media (max-width: 600px) {
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+          flex-direction: column;
+          gap: 15px;
+          text-align: center;
         }
 
         .header h1 {
-            font-size: 32px;
-            font-weight: 600;
+          font-size: 24px;
         }
 
-        .logout-btn {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 2px solid white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
+        .user-profile {
+          flex-direction: column;
+          gap: 10px;
         }
 
-        .logout-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+        .user-info {
+          text-align: center;
         }
 
         .content {
-            padding: 40px;
-        }
-
-        .section {
-            margin-bottom: 30px;
-        }
-
-        .section h3 {
-            font-size: 18px;
-            color: #333;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        textarea {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: 'Courier New', monospace;
-            resize: vertical;
-            transition: all 0.3s ease;
-            min-height: 120px;
-        }
-
-        textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        textarea::placeholder {
-            color: #bbb;
+          padding: 20px;
         }
 
         .input-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            align-items: flex-start;
+          flex-direction: column;
         }
 
         .submit-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            white-space: nowrap;
+          width: 100%;
         }
-
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .submit-btn:active {
-            transform: translateY(0);
-        }
-
-        .submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        #responseOutput {
-            background: #f8f9fa;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            min-height: 150px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.6;
-            overflow-y: auto;
-            max-height: 400px;
-            color: #333;
-        }
-
-        #responseOutput em {
-            color: #999;
-            font-style: italic;
-        }
-
-        .loading {
-            color: #667eea;
-            font-weight: 600;
-        }
-
-        .error {
-            color: #e74c3c;
-            background: #fadbd8;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 10px;
-        }
-
-        .success {
-            color: #27ae60;
-            background: #d5f4e6;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 10px;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .stat-card {
-            background: #f0f0f0;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            color: #333;
-            font-weight: 700;
-            margin-top: 5px;
-        }
-
-        /* Product Review Styles */
-        #productSelect {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: white;
-        }
-
-        #productSelect:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .product-card {
-            background: linear-gradient(135deg, #f5f7ff 0%, #efe9ff 100%);
-            padding: 20px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border-left: 4px solid #667eea;
-        }
-
-        .product-card h4 {
-            color: #667eea;
-            margin-bottom: 8px;
-        }
-
-        .product-card p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-
-        .rating-display {
-            font-size: 18px;
-            color: #ffa500;
-            font-weight: 600;
-        }
-
-        .review-form {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border: 2px solid #e0e0e0;
-        }
-
-        .review-form h4 {
-            color: #333;
-            margin-bottom: 15px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            color: #333;
-            font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .star-rating {
-            font-size: 28px;
-            cursor: pointer;
-            letter-spacing: 5px;
-            display: inline-block;
-        }
-
-        .star {
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-
-        .star:hover {
-            transform: scale(1.2);
-            filter: drop-shadow(0 0 3px rgba(255, 165, 0, 0.5));
-        }
-
-        .rating-feedback {
-            font-size: 12px;
-            color: #999;
-            margin-top: 8px;
-            font-style: italic;
-        }
-
-        #reviewText {
-            width: 100% !important;
-        }
-
-        .review-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .clear-btn {
-            background: #bbb;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .clear-btn:hover {
-            background: #999;
-            transform: translateY(-2px);
-        }
-
-        .reviews-section {
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 15px 0;
-        }
-
-        .reviews-section h4 {
-            color: #333;
-            margin-bottom: 15px;
-        }
-
-        .reviews-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .review-item {
-            border-bottom: 1px solid #eee;
-            padding: 12px 0;
-            margin-bottom: 12px;
-        }
-
-        .review-item:last-child {
-            border-bottom: none;
-        }
-
-        .review-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .review-author {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .review-date {
-            font-size: 12px;
-            color: #999;
-        }
-
-        .review-rating {
-            color: #ffa500;
-            font-size: 16px;
-            margin: 5px 0;
-        }
-
-        .review-text {
-            font-size: 14px;
-            color: #666;
-            margin: 8px 0;
-            line-height: 1.5;
-        }
-
-        .no-reviews {
-            color: #999;
-            font-style: italic;
-            text-align: center;
-            padding: 20px;
-        }
-
-        @media (max-width: 600px) {
-            .header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
-            }
-
-            .header h1 {
-                font-size: 24px;
-            }
-
-            .content {
-                padding: 20px;
-            }
-
-            .input-group {
-                flex-direction: column;
-            }
-
-            .submit-btn {
-                width: 100%;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1><i class="fa-solid fa-robot"></i> LLM Dashboard</h1>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+      <div class="header">
+        <h1><i class="fa-solid fa-robot"></i> LLM Dashboard</h1>
+        <div class="user-profile">
+          <div class="user-info">
+            <div class="welcome-text">Welcome back,</div>
+            <div class="user-name" id="userName">Loading...</div>
+          </div>
+          <img
+            class="user-avatar"
+            id="userAvatar"
+            src=""
+            alt="User Avatar"
+            style="display: none"
+          />
+          <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-label">Prompts Generated</div>
+            <div class="stat-value" id="promptCount">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Status</div>
+            <div class="stat-value" id="status">Ready</div>
+          </div>
         </div>
 
-        <div class="content">
-            <div class="stats">
-                <div class="stat-card">
-                    <div class="stat-label">Prompts Generated</div>
-                    <div class="stat-value" id="promptCount">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Status</div>
-                    <div class="stat-value" id="status">Ready</div>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3><i class="fa-solid fa-comment-dots"></i> Ask the AI</h3>
-                <textarea
-                    id="promptInput"
-                    placeholder="Enter your prompt here... (e.g., 'Write a poem about nature')"
-                ></textarea>
-                <div class="input-group">
-                    <button class="submit-btn" onclick="submitPrompt()" id="submitBtn">Generate Output</button>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3><i class="fa-solid fa-reply"></i> Response</h3>
-                <div id="responseOutput">
-                    <em>Awaiting input...</em>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3><i class="fa-solid fa-star"></i> Reviews</h3>
-                <div class="review-form">
-                    <h4>Leave a Review</h4>
-
-                    <div class="form-group">
-                        <label for="reviewAuthor">Author</label>
-                        <input id="reviewAuthor" type="text" placeholder="Your name" required />
-                    </div>
-
-                    <div class="form-group">
-                        <label><strong>Rating:</strong></label>
-                        <div id="ratingStars" class="star-rating">
-                            <span class="star" data-value="1">☆</span>
-                            <span class="star" data-value="2">☆</span>
-                            <span class="star" data-value="3">☆</span>
-                            <span class="star" data-value="4">☆</span>
-                            <span class="star" data-value="5">☆</span>
-                        </div>
-                        <p class="rating-feedback" id="selectedRating">No rating selected</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="reviewText"><strong>Your Review:</strong></label>
-                        <textarea
-                            id="reviewText"
-                            rows="4"
-                            placeholder="Share your ideas or feedback..."
-                        ></textarea>
-                    </div>
-
-                    <div class="review-buttons">
-                        <button class="submit-btn" onclick="submitReview()" id="submitReviewBtn">Submit Review</button>
-                        <button class="clear-btn" onclick="clearReviewForm()">Clear</button>
-                    </div>
-                </div>
-
-                <div class="reviews-section">
-                    <h4>Recent Reviews</h4>
-                    <div id="reviewsList" class="reviews-list">
-                        <p class="no-reviews">No recent reviews yet</p>
-                    </div>
-                </div>
-            </div>
+        <div class="section">
+          <h3><i class="fa-solid fa-comment-dots"></i> Ask the AI</h3>
+          <textarea
+            id="promptInput"
+            placeholder="Enter your prompt here... (e.g., 'Write a poem about nature')"
+          ></textarea>
+          <div class="input-group">
+            <button class="submit-btn" onclick="submitPrompt()" id="submitBtn">
+              Generate Output
+            </button>
+          </div>
         </div>
+
+        <div class="section">
+          <h3><i class="fa-solid fa-reply"></i> Response</h3>
+          <div id="responseOutput">
+            <em>Awaiting input...</em>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3><i class="fa-solid fa-star"></i> Reviews</h3>
+          <div class="review-form">
+            <h4>Leave a Review</h4>
+
+            <div class="form-group">
+              <label for="reviewAuthor">Author</label>
+              <input
+                id="reviewAuthor"
+                type="text"
+                placeholder="Your name"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label><strong>Rating:</strong></label>
+              <div id="ratingStars" class="star-rating">
+                <span class="star" data-value="1">☆</span>
+                <span class="star" data-value="2">☆</span>
+                <span class="star" data-value="3">☆</span>
+                <span class="star" data-value="4">☆</span>
+                <span class="star" data-value="5">☆</span>
+              </div>
+              <p class="rating-feedback" id="selectedRating">
+                No rating selected
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label for="reviewText"><strong>Your Review:</strong></label>
+              <textarea
+                id="reviewText"
+                rows="4"
+                placeholder="Share your ideas or feedback..."
+              ></textarea>
+            </div>
+
+            <div class="review-buttons">
+              <button
+                class="submit-btn"
+                onclick="submitReview()"
+                id="submitReviewBtn"
+              >
+                Submit Review
+              </button>
+              <button class="clear-btn" onclick="clearReviewForm()">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div class="reviews-section">
+            <h4>Recent Reviews</h4>
+            <div id="reviewsList" class="reviews-list">
+              <p class="no-reviews">No recent reviews yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
-        let promptCounter = 0;
+      // Check authentication on page load (optional)
+      async function checkAuth() {
+        try {
+          const response = await fetch("http://localhost:3000/api/auth/user");
+          if (response.ok) {
+            const data = await response.json();
+            displayUserInfo(data.user);
+          } else {
+            // Not authenticated, show default state
+            displayDefaultUser();
+          }
+        } catch (error) {
+          // Error checking auth, show default state
+          displayDefaultUser();
+        }
+      }
 
-        // Handle LLM Inference request
-        async function submitPrompt() {
-            const promptText = document.getElementById("promptInput").value.trim();
-            const outputDiv = document.getElementById("responseOutput");
-            const submitBtn = document.getElementById("submitBtn");
+      // Display default user state when not authenticated
+      function displayDefaultUser() {
+        const userNameElement = document.getElementById("userName");
+        const userAvatarElement = document.getElementById("userAvatar");
 
-            if (!promptText) {
-                outputDiv.innerHTML = '<div class="error">Please enter a prompt</div>';
-                return;
-            }
+        userNameElement.textContent = "Guest";
+        userAvatarElement.src =
+          "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHBhdGggZD0iTTMwIDI4QzMwIDI0IDI2IDIyIDI1IDIyQzI0IDIyIDIyIDI0IDIyIDI4VjMwQzIyIDMxIDIzIDMyIDI1IDMyQzI3IDMyIDI4IDMxIDI4IDMwVjI4WiIgZmlsbD0id2hpdGUiLz4KPGNpcmNsZSBjeD0iMjUiIGN5PSIxOCIgcj0iNSIgZmlsbD0id2hpdGUiLz4KPC9zdmc+";
+        userAvatarElement.style.display = "block";
+      }
 
-            outputDiv.innerHTML = '<span class="loading">⏳ Processing...</span>';
-            submitBtn.disabled = true;
+      // Display user information in the header
+      function displayUserInfo(user) {
+        const userNameElement = document.getElementById("userName");
+        const userAvatarElement = document.getElementById("userAvatar");
 
-            try {
-                let res = await fetch("http://localhost:3000/api/llm/infer", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt: promptText }),
-                });
+        // Set user name
+        userNameElement.textContent = user.name;
 
-                let data = await res.json();
-                if (res.ok) {
-                    promptCounter++;
-                    document.getElementById("promptCount").textContent = promptCounter;
-                    outputDiv.innerHTML = `<span class="success"><i class="fa-solid fa-check"></i> Generated:</span><br><br>${escapeHtml(data.message || data.output || 'Response received')}`;
-                } else {
-                    outputDiv.innerHTML = `<div class="error"><i class="fa-solid fa-triangle-exclamation"></i> Error: ${escapeHtml(data.error || "Failed to fetch")}</div>`;
-                }
-            } catch (error) {
-                outputDiv.innerHTML = `<div class="error"><i class="fa-solid fa-triangle-exclamation"></i> Connection error. Is the server running?</div>`;
-            } finally {
-                submitBtn.disabled = false;
-            }
+        // Set user avatar
+        if (user.avatar) {
+          userAvatarElement.src = user.avatar;
+          userAvatarElement.style.display = "block";
+        } else {
+          // Use default avatar for non-Google users
+          userAvatarElement.src =
+            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjUiIGN5PSIyNSIgcj0iMjUiIGZpbGw9IiM2NjdlZWEiLz4KPHBhdGggZD0iTTMwIDI4QzMwIDI0IDI2IDIyIDI1IDIyQzI0IDIyIDIyIDI0IDIyIDI4VjMwQzIyIDMxIDIzIDMyIDI1IDMyQzI3IDMyIDI4IDMxIDI4IDMwVjI4WiIgZmlsbD0id2hpdGUiLz4KPGNpcmNsZSBjeD0iMjUiIGN5PSIxOCIgcj0iNSIgZmlsbD0id2hpdGUiLz4KPC9zdmc+";
+          userAvatarElement.style.display = "block";
+        }
+      }
+
+      // Run auth check when page loads
+      checkAuth();
+
+      let promptCounter = 0;
+
+      // Handle LLM Inference request
+      async function submitPrompt() {
+        const promptText = document.getElementById("promptInput").value.trim();
+        const outputDiv = document.getElementById("responseOutput");
+        const submitBtn = document.getElementById("submitBtn");
+
+        if (!promptText) {
+          outputDiv.innerHTML =
+            '<div class="error">Please enter a prompt</div>';
+          return;
         }
 
-        // Handle Logout
-        async function logout() {
-            if (!confirm("Are you sure you want to logout?")) {
-                return;
-            }
+        outputDiv.innerHTML = '<span class="loading">⏳ Processing...</span>';
+        submitBtn.disabled = true;
 
-            try {
-                let res = await fetch("http://localhost:3000/api/logout", {
-                    method: "POST",
-                });
-                if (res.ok) {
-                    window.location.href = "index.html";
-                }
-            } catch (error) {
-                alert("Error logging out.");
-            }
+        try {
+          let res = await fetch("http://localhost:3000/api/llm/infer", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: promptText }),
+          });
+
+          let data = await res.json();
+          if (res.ok) {
+            promptCounter++;
+            document.getElementById("promptCount").textContent = promptCounter;
+            outputDiv.innerHTML = `<span class="success"><i class="fa-solid fa-check"></i> Generated:</span><br><br>${escapeHtml(data.message || data.output || "Response received")}`;
+          } else {
+            outputDiv.innerHTML = `<div class="error"><i class="fa-solid fa-triangle-exclamation"></i> Error: ${escapeHtml(data.error || "Failed to fetch")}</div>`;
+          }
+        } catch (error) {
+          outputDiv.innerHTML = `<div class="error"><i class="fa-solid fa-triangle-exclamation"></i> Connection error. Is the server running?</div>`;
+        } finally {
+          submitBtn.disabled = false;
+        }
+      }
+
+      // Handle Logout
+      async function logout() {
+        if (!confirm("Are you sure you want to logout?")) {
+          return;
         }
 
-        // Allow Enter key to submit
-        document.getElementById("promptInput").addEventListener("keydown", (e) => {
-            if (e.ctrlKey && e.key === "Enter") {
-                submitPrompt();
-            }
+        try {
+          let res = await fetch("http://localhost:3000/api/auth/logout");
+          if (res.ok) {
+            window.location.href = "index.html";
+          }
+        } catch (error) {
+          alert("Error logging out.");
+        }
+      }
+
+      // Allow Enter key to submit
+      document
+        .getElementById("promptInput")
+        .addEventListener("keydown", (e) => {
+          if (e.ctrlKey && e.key === "Enter") {
+            submitPrompt();
+          }
         });
 
-        // Review system without product selection
-        let selectedRating = 0;
+      // Review system without product selection
+      let selectedRating = 0;
 
-        document.addEventListener("DOMContentLoaded", function() {
-            setUpRatingStars();
-            loadReviews();
-        });
+      document.addEventListener("DOMContentLoaded", function () {
+        setUpRatingStars();
+        loadReviews();
+      });
 
-        function setUpRatingStars() {
-            document.querySelectorAll(".star").forEach(star => {
-                star.addEventListener("click", function() {
-                    selectedRating = Number(this.getAttribute("data-value"));
-                    updateStarDisplay();
-                    document.getElementById("selectedRating").textContent = "Rating: " + selectedRating + " out of 5";
-                });
-            });
-        }
-
-        function updateStarDisplay() {
-            document.querySelectorAll(".star").forEach(star => {
-                const value = Number(star.getAttribute("data-value"));
-                star.textContent = value <= selectedRating ? "★" : "☆";
-            });
-        }
-
-        async function submitReview() {
-            const author = document.getElementById("reviewAuthor").value.trim();
-            const text = document.getElementById("reviewText").value.trim();
-
-            if (!author) {
-                alert("Please enter your name.");
-                return;
-            }
-            if (!selectedRating) {
-                alert("Please select a rating.");
-                return;
-            }
-            if (!text) {
-                alert("Please enter a review.");
-                return;
-            }
-
-            document.getElementById("submitReviewBtn").disabled = true;
-            try {
-                const response = await fetch("http://localhost:3000/api/reviews", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ author, rating: selectedRating, text }),
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || "Failed to submit review");
-                }
-
-                clearReviewForm();
-                loadReviews();
-                alert("Review submitted successfully.");
-            } catch (error) {
-                alert("Error: " + error.message);
-            } finally {
-                document.getElementById("submitReviewBtn").disabled = false;
-            }
-        }
-
-        function clearReviewForm() {
-            selectedRating = 0;
+      function setUpRatingStars() {
+        document.querySelectorAll(".star").forEach((star) => {
+          star.addEventListener("click", function () {
+            selectedRating = Number(this.getAttribute("data-value"));
             updateStarDisplay();
-            document.getElementById("reviewAuthor").value = "";
-            document.getElementById("reviewText").value = "";
-            document.getElementById("selectedRating").textContent = "No rating selected";
+            document.getElementById("selectedRating").textContent =
+              "Rating: " + selectedRating + " out of 5";
+          });
+        });
+      }
+
+      function updateStarDisplay() {
+        document.querySelectorAll(".star").forEach((star) => {
+          const value = Number(star.getAttribute("data-value"));
+          star.textContent = value <= selectedRating ? "★" : "☆";
+        });
+      }
+
+      async function submitReview() {
+        const author = document.getElementById("reviewAuthor").value.trim();
+        const text = document.getElementById("reviewText").value.trim();
+
+        if (!author) {
+          alert("Please enter your name.");
+          return;
+        }
+        if (!selectedRating) {
+          alert("Please select a rating.");
+          return;
+        }
+        if (!text) {
+          alert("Please enter a review.");
+          return;
         }
 
-        async function loadReviews() {
-            try {
-                const response = await fetch("http://localhost:3000/api/reviews");
-                if (!response.ok) throw new Error("Unable to fetch reviews");
+        document.getElementById("submitReviewBtn").disabled = true;
+        try {
+          const response = await fetch("http://localhost:3000/api/reviews", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ author, rating: selectedRating, text }),
+          });
 
-                const { reviews } = await response.json();
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || "Failed to submit review");
+          }
 
-                if (!reviews || reviews.length === 0) {
-                    document.getElementById("reviewsList").innerHTML = '<p class="no-reviews">No reviews yet. Be the first one!</p>';
-                    return;
-                }
+          clearReviewForm();
+          loadReviews();
+          alert("Review submitted successfully.");
+        } catch (error) {
+          alert("Error: " + error.message);
+        } finally {
+          document.getElementById("submitReviewBtn").disabled = false;
+        }
+      }
 
-                let html = "";
-                reviews.forEach((review) => {
-                    html += `
+      function clearReviewForm() {
+        selectedRating = 0;
+        updateStarDisplay();
+        document.getElementById("reviewAuthor").value = "";
+        document.getElementById("reviewText").value = "";
+        document.getElementById("selectedRating").textContent =
+          "No rating selected";
+      }
+
+      async function loadReviews() {
+        try {
+          const response = await fetch("http://localhost:3000/api/reviews");
+          if (!response.ok) throw new Error("Unable to fetch reviews");
+
+          const { reviews } = await response.json();
+
+          if (!reviews || reviews.length === 0) {
+            document.getElementById("reviewsList").innerHTML =
+              '<p class="no-reviews">No reviews yet. Be the first one!</p>';
+            return;
+          }
+
+          let html = "";
+          reviews.forEach((review) => {
+            html += `
                         <div class="review-item">
                             <div class="review-header">
                                 <span class="review-author">${escapeHtml(review.author)}</span>
@@ -653,25 +784,24 @@
                             <p class="review-text">${escapeHtml(review.text)}</p>
                         </div>
                     `;
-                });
+          });
 
-                document.getElementById("reviewsList").innerHTML = html;
-            } catch (error) {
-                document.getElementById("reviewsList").innerHTML = `<p class="no-reviews">Error loading reviews: ${error.message}</p>`;
-            }
+          document.getElementById("reviewsList").innerHTML = html;
+        } catch (error) {
+          document.getElementById("reviewsList").innerHTML =
+            `<p class="no-reviews">Error loading reviews: ${error.message}</p>`;
         }
+      }
 
-        function escapeHtml(str) {
-            if (!str) return "";
-            return str
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
+      function escapeHtml(str) {
+        if (!str) return "";
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
     </script>
-  </body>
-</html>
   </body>
 </html>

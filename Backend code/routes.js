@@ -1,7 +1,49 @@
 const express = require("express");
+const passport = require("passport");
 const db = require("./db");
 
 const router = express.Router();
+
+// Google OAuth routes
+router.get(
+  "/auth/google",
+  passport.authenticate("google", { scope: ["profile", "email"] }),
+);
+
+router.get(
+  "/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "/" }),
+  function (req, res) {
+    // Successful authentication, redirect to dashboard
+    res.redirect("/dashboard.html");
+  },
+);
+
+router.get("/auth/logout", function (req, res, next) {
+  req.logout(function (err) {
+    if (err) {
+      return next(err);
+    }
+    res.redirect("/");
+  });
+});
+
+router.get("/auth/user", function (req, res) {
+  if (req.isAuthenticated()) {
+    const user = req.user;
+    res.json({
+      user: {
+        id: user.id,
+        name: user.google_id ? user.username : user.email,
+        email: user.email,
+        avatar: user.avatar || null,
+        isGoogleUser: !!user.google_id,
+      },
+    });
+  } else {
+    res.status(401).json({ error: "Not authenticated" });
+  }
+});
 
 router.post("/register", (req, res) => {
   const username = req.body.username;
@@ -26,7 +68,7 @@ router.post("/register", (req, res) => {
   );
 });
 
-router.post("/login", (req, res) => {
+router.post("/login", (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
 
@@ -34,6 +76,7 @@ router.post("/login", (req, res) => {
     return res.status(400).json({ error: "Missing email or password" });
   }
 
+  // Check credentials manually, then log user in with passport
   db.get(
     "SELECT * FROM users WHERE email = ? AND password = ?",
     [email, password],
@@ -42,7 +85,13 @@ router.post("/login", (req, res) => {
         console.error("Login error:", err.message);
         res.status(500).json({ error: err.message });
       } else if (row) {
-        res.json({ message: "successful login", user: row });
+        // Log user in with passport
+        req.login(row, (err) => {
+          if (err) {
+            return next(err);
+          }
+          res.json({ message: "successful login", user: row });
+        });
       } else {
         res.status(401).json({ message: "invalid credentials" });
       }
