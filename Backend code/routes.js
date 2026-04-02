@@ -65,4 +65,26 @@ router.post("/llm/infer", (req, res) => {
   res.json({ message: output });
 });
 
+router.post("/signup", (req, res) => {
+  const username = req.body.username;
+  const email = req.body.email;
+  const password = req.body.password;
+
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  db.run(
+    "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
+    [username, email, password],
+    function (err) {
+      if (err) {
+        console.error("Signup error:", err.message);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ message: "user created" });
+    }
+  );
+});
+
 module.exports = router;
