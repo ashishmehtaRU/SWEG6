@@ -54,4 +54,15 @@ router.post("/logout", (req, res) => {
   res.json({ message: "logout" });
 });
 
+router.post("/llm/infer", (req, res) => {
+  const { prompt } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({ error: "Prompt required" });
+  }
+
+  const output = "AI Response: " + prompt;
+  res.json({ message: output });
+});
+
 module.exports = router;
