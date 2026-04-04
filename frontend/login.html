@@ -183,67 +183,68 @@
         Don't have an account? <a href="signup.html">Sign up</a>
       </div>
     </div>
-
     <script>
-      const form = document.getElementById("loginForm");
-      const loginBtn = document.getElementById("loginBtn");
+  const form = document.getElementById("loginForm");
+  const loginBtn = document.getElementById("loginBtn");
 
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        clearErrors();
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearErrors();
 
-        const email = document.getElementById("email").value.trim();
-        const password = document.getElementById("password").value;
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
 
-        // Validation
-        if (!email) {
-          showError("emailError", "Email is required");
-          return;
-        }
-        if (!password) {
-          showError("passwordError", "Password is required");
-          return;
-        }
+    if (!email) {
+      showError("emailError", "Email is required");
+      return;
+    }
+    if (!password) {
+      showError("passwordError", "Password is required");
+      return;
+    }
 
-        loginBtn.disabled = true;
-        loginBtn.textContent = "Logging in...";
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Logging in...";
 
-        try {
-          const response = await fetch("http://localhost:3000/api/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-
-          if (response.ok) {
-            document.getElementById("successMsg").style.display = "block";
-            setTimeout(() => {
-              window.location.href = "dashboard.html";
-            }, 1000);
-          } else {
-            showError("emailError", "Invalid email or password");
-          }
-        } catch (err) {
-          showError(
-            "emailError",
-            "Connection error. Make sure the server is running.",
-          );
-        } finally {
-          loginBtn.disabled = false;
-          loginBtn.textContent = "Login";
-        }
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      function showError(elementId, message) {
-        document.getElementById(elementId).textContent = message;
-        document.getElementById(elementId).style.display = "block";
-      }
+      const data = await response.json();
 
-      function clearErrors() {
-        document
-          .querySelectorAll(".error")
-          .forEach((el) => (el.style.display = "none"));
+      if (response.ok) {
+        localStorage.setItem("loggedInUser", JSON.stringify(data.user));
+        document.getElementById("successMsg").style.display = "block";
+        setTimeout(() => {
+          window.location.href = "dashboard.html";
+        }, 1000);
+      } else {
+        showError("emailError", data.error || data.message || "Invalid email or password");
       }
-    </script>
+    } catch (err) {
+      showError(
+        "emailError",
+        "Connection error. Make sure the server is running.",
+      );
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Login";
+    }
+  });
+
+  function showError(elementId, message) {
+    document.getElementById(elementId).textContent = message;
+    document.getElementById(elementId).style.display = "block";
+  }
+
+  function clearErrors() {
+    document
+      .querySelectorAll(".error")
+      .forEach((el) => (el.style.display = "none"));
+  }
+</script>
   </body>
 </html>

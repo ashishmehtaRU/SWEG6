@@ -243,6 +243,21 @@
                 </div>
             </div>
 
+        <div class="section">
+            <h3>📚 Conversation History</h3>
+            <div class="input-group">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search conversations..."
+                    style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px;"
+                />
+                <button class="submit-btn" onclick="searchConversations()">Search</button>
+                <button class="submit-btn" onclick="createConversation()">New Chat</button>
+            </div>
+         <div id="conversationList" style="margin-top: 15px;"></div>
+        </div>
+
             <div class="section">
                 <h3>💬 Ask the AI:</h3>
                 <textarea
@@ -260,74 +275,291 @@
                     <em>Awaiting input...</em>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <script>
-        let promptCounter = 0;
+            <div class="section">
+            <h3>⭐ Leave a Review</h3>
+            <textarea
+              id="reviewInput"
+             placeholder="Write your review here..."
+             style="min-height: 100px;"
+            ></textarea>
+            <div class="input-group">
+                <button class="submit-btn" onclick="submitReview()">Submit Review</button>
+          </div>
+            <div id="reviewStatus"></div>
+             </div>
 
-        // Handle LLM Inference request
-        async function submitPrompt() {
-            const promptText = document.getElementById("promptInput").value.trim();
-            const outputDiv = document.getElementById("responseOutput");
-            const submitBtn = document.getElementById("submitBtn");
+             <div class="section">
+                  <h3>🗂 Recent Reviews</h3>
+                    <div id="reviewList"></div>
+             </div>
 
-            if (!promptText) {
-                outputDiv.innerHTML = '<div class="error">Please enter a prompt</div>';
+             </div>
+         </div>
+
+  <script>
+    let promptCounter = 0;
+    let currentConversationId = null;
+    const loggedInUser = JSON.parse(localStorage.getItem("loggedInUser"));
+    let currentUserId = loggedInUser ? loggedInUser.id : null;
+
+    if (!currentUserId) {
+         alert("No logged in user found. Please log in again.");
+        window.location.href = "login.html";
+    }
+
+    async function createConversation() {
+        try {
+            let res = await fetch("http://localhost:3000/api/conversations", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    title: "New Conversation"
+                }),
+            });
+
+            let data = await res.json();
+
+            if (res.ok) {
+                currentConversationId = data.conversationId;
+                document.getElementById("status").textContent = "Chat Created";
+                loadConversations();
+                document.getElementById("responseOutput").innerHTML = "<em>New conversation started.</em>";
+            } else {
+                document.getElementById("responseOutput").innerHTML =
+                    `<div class="error">❌ ${data.error || "Failed to create conversation"}</div>`;
+            }
+        } catch (error) {
+            document.getElementById("responseOutput").innerHTML =
+                `<div class="error">❌ Connection error creating conversation</div>`;
+        }
+    }
+
+    async function loadConversations() {
+        try {
+            let res = await fetch(`http://localhost:3000/api/conversations/${currentUserId}`);
+            let data = await res.json();
+
+            const listDiv = document.getElementById("conversationList");
+            listDiv.innerHTML = "";
+
+            if (!data || data.length === 0) {
+                listDiv.innerHTML = "<em>No conversations yet.</em>";
                 return;
             }
 
-            outputDiv.innerHTML = '<span class="loading">⏳ Processing...</span>';
-            submitBtn.disabled = true;
-
-            try {
-                let res = await fetch("http://localhost:3000/api/llm/infer", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt: promptText }),
-                });
-
-                let data = await res.json();
-                if (res.ok) {
-                    promptCounter++;
-                    document.getElementById("promptCount").textContent = promptCounter;
-                    outputDiv.innerHTML = `<span class="success">✓ Generated:</span><br><br>${data.message || data.output || 'Response received'}`;
-                } else {
-                    outputDiv.innerHTML = `<div class="error">❌ Error: ${data.error || "Failed to fetch"}</div>`;
-                }
-            } catch (error) {
-                outputDiv.innerHTML = `<div class="error">❌ Connection error. Is the server running?</div>`;
-            } finally {
-                submitBtn.disabled = false;
-            }
+            data.forEach(conv => {
+                const item = document.createElement("div");
+                item.style.padding = "10px";
+                item.style.marginBottom = "10px";
+                item.style.border = "1px solid #ddd";
+                item.style.borderRadius = "8px";
+                item.style.cursor = "pointer";
+                item.innerHTML = `
+                    <strong>${conv.title || "Untitled Conversation"}</strong><br>
+                    <small>ID: ${conv.id}</small>
+                `;
+                item.onclick = () => loadConversationMessages(conv.id);
+                listDiv.appendChild(item);
+            });
+        } catch (error) {
+            document.getElementById("conversationList").innerHTML =
+                `<div class="error">❌ Failed to load conversations</div>`;
         }
+    }
 
-        // Handle Logout
-        async function logout() {
-            if (!confirm("Are you sure you want to logout?")) {
+    async function searchConversations() {
+        const q = document.getElementById("searchInput").value.trim();
+
+        try {
+            let res = await fetch(`http://localhost:3000/api/conversations/search/${currentUserId}?q=${encodeURIComponent(q)}`);
+            let data = await res.json();
+
+            const listDiv = document.getElementById("conversationList");
+            listDiv.innerHTML = "";
+
+            if (!data || data.length === 0) {
+                listDiv.innerHTML = "<em>No matching conversations found.</em>";
                 return;
             }
 
-            try {
-                let res = await fetch("http://localhost:3000/api/logout", {
-                    method: "POST",
-                });
-                if (res.ok) {
-                    window.location.href = "index.html";
-                }
-            } catch (error) {
-                alert("Error logging out.");
+            data.forEach(conv => {
+                const item = document.createElement("div");
+                item.style.padding = "10px";
+                item.style.marginBottom = "10px";
+                item.style.border = "1px solid #ddd";
+                item.style.borderRadius = "8px";
+                item.style.cursor = "pointer";
+                item.innerHTML = `
+                    <strong>${conv.title || "Untitled Conversation"}</strong><br>
+                    <small>ID: ${conv.id}</small>
+                `;
+                item.onclick = () => loadConversationMessages(conv.id);
+                listDiv.appendChild(item);
+            });
+        } catch (error) {
+            document.getElementById("conversationList").innerHTML =
+                `<div class="error">❌ Search failed</div>`;
+        }
+    }
+
+    async function loadConversationMessages(conversationId) {
+        try {
+            let res = await fetch(`http://localhost:3000/api/conversation/${conversationId}`);
+            let data = await res.json();
+
+            currentConversationId = conversationId;
+            document.getElementById("status").textContent = "Loaded";
+
+            if (!data || data.length === 0) {
+                document.getElementById("responseOutput").innerHTML = "<em>No messages yet.</em>";
+                return;
             }
+
+            let html = "";
+            data.forEach(msg => {
+                html += `<p><strong>${msg.role}:</strong> ${msg.content}</p><br>`;
+            });
+
+            document.getElementById("responseOutput").innerHTML = html;
+        } catch (error) {
+            document.getElementById("responseOutput").innerHTML =
+                `<div class="error">❌ Failed to load messages</div>`;
+        }
+    }
+
+    async function submitPrompt() {
+        const promptText = document.getElementById("promptInput").value.trim();
+        const outputDiv = document.getElementById("responseOutput");
+        const submitBtn = document.getElementById("submitBtn");
+
+        if (!promptText) {
+            outputDiv.innerHTML = '<div class="error">Please enter a prompt</div>';
+            return;
         }
 
-        // Allow Enter key to submit
-        document.getElementById("promptInput").addEventListener("keydown", (e) => {
-            if (e.ctrlKey && e.key === "Enter") {
-                submitPrompt();
+        if (!currentConversationId) {
+            await createConversation();
+        }
+
+        outputDiv.innerHTML = '<span class="loading">⏳ Processing...</span>';
+        submitBtn.disabled = true;
+
+        try {
+            let res = await fetch(`http://localhost:3000/api/conversation/${currentConversationId}/message`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ prompt: promptText }),
+            });
+
+            let data = await res.json();
+
+            if (res.ok) {
+                promptCounter++;
+                document.getElementById("promptCount").textContent = promptCounter;
+                document.getElementById("status").textContent = "Responded";
+                document.getElementById("promptInput").value = "";
+                await loadConversationMessages(currentConversationId);
+                await loadConversations();
+            } else {
+                outputDiv.innerHTML = `<div class="error">❌ Error: ${data.error || "Failed to fetch"}</div>`;
             }
-        });
-    </script>
-  </body>
-</html>
-  </body>
-</html>
+        } catch (error) {
+            outputDiv.innerHTML = `<div class="error">❌ Connection error. Is the server running?</div>`;
+        } finally {
+            submitBtn.disabled = false;
+        }
+    }
+
+    async function submitReview() {
+        const reviewText = document.getElementById("reviewInput").value.trim();
+        const reviewStatus = document.getElementById("reviewStatus");
+
+        if (!reviewText) {
+            reviewStatus.innerHTML = `<div class="error">Review cannot be empty</div>`;
+            return;
+        }
+
+        try {
+            let res = await fetch("http://localhost:3000/api/reviews", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    review_text: reviewText
+                }),
+            });
+
+            let data = await res.json();
+
+            if (res.ok) {
+                reviewStatus.innerHTML = `<div class="success">✓ Review submitted</div>`;
+                document.getElementById("reviewInput").value = "";
+                loadReviews();
+            } else {
+                reviewStatus.innerHTML = `<div class="error">❌ ${data.error || "Failed to submit review"}</div>`;
+            }
+        } catch (error) {
+            reviewStatus.innerHTML = `<div class="error">❌ Connection error</div>`;
+        }
+    }
+
+    async function loadReviews() {
+        try {
+            let res = await fetch("http://localhost:3000/api/reviews");
+            let data = await res.json();
+
+            const reviewList = document.getElementById("reviewList");
+            reviewList.innerHTML = "";
+
+            if (!data || data.length === 0) {
+                reviewList.innerHTML = "<em>No reviews yet.</em>";
+                return;
+            }
+
+            data.forEach(review => {
+                const item = document.createElement("div");
+                item.style.padding = "10px";
+                item.style.marginBottom = "10px";
+                item.style.border = "1px solid #ddd";
+                item.style.borderRadius = "8px";
+                item.innerHTML = `
+                    <p>${review.review_text}</p>
+                    <small>${review.created_at || ""}</small>
+                `;
+                reviewList.appendChild(item);
+            });
+        } catch (error) {
+            document.getElementById("reviewList").innerHTML =
+                `<div class="error">❌ Failed to load reviews</div>`;
+        }
+    }
+
+    async function logout() {
+        localStorage.removeItem("loggedInUser");
+        if (!confirm("Are you sure you want to logout?")) {
+            return;
+        }
+
+        try {
+            let res = await fetch("http://localhost:3000/api/logout", {
+                method: "POST",
+            });
+            if (res.ok) {
+                window.location.href = "index.html";
+            }
+        } catch (error) {
+            alert("Error logging out.");
+        }
+    }
+
+    document.getElementById("promptInput").addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.key === "Enter") {
+            submitPrompt();
+        }
+    });
+
+    loadConversations();
+    loadReviews();
+</script>
