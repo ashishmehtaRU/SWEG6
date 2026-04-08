@@ -405,29 +405,33 @@
     }
 
     async function loadConversationMessages(conversationId) {
-        try {
-            let res = await fetch(`http://localhost:3000/api/conversation/${conversationId}`);
-            let data = await res.json();
+    try {
+        let res = await fetch(`http://localhost:3000/api/conversation/${conversationId}`);
+        let data = await res.json();
 
-            currentConversationId = conversationId;
-            document.getElementById("status").textContent = "Loaded";
+        currentConversationId = conversationId;
+        document.getElementById("status").textContent = "Loaded";
 
-            if (!data || data.length === 0) {
-                document.getElementById("responseOutput").innerHTML = "<em>No messages yet.</em>";
-                return;
-            }
-
-            let html = "";
-            data.forEach(msg => {
-                html += `<p><strong>${msg.role}:</strong> ${msg.content}</p><br>`;
-            });
-
-            document.getElementById("responseOutput").innerHTML = html;
-        } catch (error) {
-            document.getElementById("responseOutput").innerHTML =
-                `<div class="error">❌ Failed to load messages</div>`;
+        if (!data || data.length === 0) {
+            document.getElementById("responseOutput").innerHTML = "<em>No messages yet.</em>";
+            return;
         }
+
+        let html = "";
+        data.forEach(msg => {
+            if (msg.role === "assistant") {
+                html += `<p><strong>AI Response:</strong> ${msg.content.replace(/^AI Response:\s*/i, "")}</p><br>`;
+            } else {
+                html += `<p><strong>User:</strong> ${msg.content}</p><br>`;
+            }
+        });
+
+        document.getElementById("responseOutput").innerHTML = html;
+    } catch (error) {
+        document.getElementById("responseOutput").innerHTML =
+            `<div class="error">❌ Failed to load messages</div>`;
     }
+}
 
     async function submitPrompt() {
         const promptText = document.getElementById("promptInput").value.trim();
