@@ -1,0 +1,17 @@
+Feature 4: Add conversation history support. [PR/Commit: Add new backend code for db and routes.js for iter 2]
+- Added conversations table to the database
+- Added messages table to store prompts and AI responses
+- Added backend routes to create conversations, load conversations, search conversations, and load messages
+
+Feature 5: Add review system support. [PR/Commit: Add new backend code for db and routes.js for iter 2]
+- Added reviews table to the database
+- Added backend route to submit reviews
+- Added backend route to retrieve reviews
+
+Feature 6: Add Iteration 2 frontend integration. [PR/Commit: Add front end part for iteration 2]
+- Updated dashboard to create and load conversations
+- Added conversation history section to the dashboard
+- Added conversation search feature
+- Connected prompt submission to stored conversation messages
+- Added review submission UI and recent reviews section
+- Updated login/dashboard flow so each user only sees their own conversations
