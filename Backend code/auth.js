@@ -27,7 +27,7 @@ passport.use(
             // User exists, return user
             return done(null, row);
           } else {
-            // User doesn't exist, create new user
+            // User doesn't exist by google_id, see if email is already registered
             const email = profile.emails[0].value;
             const name = profile.displayName;
             const avatar =
@@ -35,25 +35,58 @@ passport.use(
                 ? profile.photos[0].value
                 : null;
 
-            db.run(
-              "INSERT INTO users (username, email, google_id, avatar) VALUES (?, ?, ?, ?)",
-              [name, email, profile.id, avatar],
-              function (err) {
+            db.get(
+              "SELECT * FROM users WHERE email = ?",
+              [email],
+              (err, existingEmailUser) => {
                 if (err) {
                   return done(err);
                 }
 
-                // Get the newly created user
-                db.get(
-                  "SELECT * FROM users WHERE id = ?",
-                  [this.lastID],
-                  (err, newUser) => {
-                    if (err) {
-                      return done(err);
-                    }
-                    return done(null, newUser);
-                  },
-                );
+                if (existingEmailUser) {
+                  // Link the Google account to the existing user record
+                  db.run(
+                    "UPDATE users SET google_id = ?, avatar = ? WHERE id = ?",
+                    [profile.id, avatar, existingEmailUser.id],
+                    (updateErr) => {
+                      if (updateErr) {
+                        return done(updateErr);
+                      }
+                      db.get(
+                        "SELECT * FROM users WHERE id = ?",
+                        [existingEmailUser.id],
+                        (err, updatedUser) => {
+                          if (err) {
+                            return done(err);
+                          }
+                          return done(null, updatedUser);
+                        },
+                      );
+                    },
+                  );
+                } else {
+                  db.run(
+                    "INSERT INTO users (username, email, google_id, avatar) VALUES (?, ?, ?, ?)",
+                    [name, email, profile.id, avatar],
+                    function (err) {
+                      if (err) {
+                        return done(err);
+                      }
+
+                      // Get the newly created user
+                      db.get(
+                        "SELECT * FROM users WHERE id = ?",
+                        [this.lastID],
+                        (err, newUser) => {
+                          if (err) {
+                            return done(err);
+                          }
+                          return done(null, newUser);
+                        },
+                      );
+                    },
+                  );
+                }
               },
             );
           }

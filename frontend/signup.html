@@ -255,10 +255,12 @@
             }, 1500);
           } else {
             const error = await response.json();
-            showError(
-              "usernameError",
-              error.error || "Signup failed. Try again.",
-            );
+            const message = error.error || "Signup failed. Try again.";
+            if (message.toLowerCase().includes("email")) {
+              showError("emailError", message);
+            } else {
+              showError("usernameError", message);
+            }
           }
         } catch (err) {
           showError(
