@@ -334,17 +334,35 @@ router.patch("/conversation/:conversationId/model", async (req, res) => {
 
 router.get("/conversations/search/:userId", async (req, res) => {
   const userId = req.params.userId;
-  const query = req.query.q ? `%${req.query.q}%` : "%";
+  const queryText = req.query.q ? req.query.q.trim() : "";
 
   try {
+    if (!queryText) {
+      const rows = await dbAll(
+        `SELECT c.id, c.user_id, c.title, c.model, c.created_at, c.updated_at,
+          (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message
+         FROM conversations c
+         WHERE c.user_id = ?
+         ORDER BY c.updated_at DESC`,
+        [userId],
+      );
+      return res.json(rows);
+    }
+
     const rows = await dbAll(
-      `SELECT DISTINCT c.id, c.user_id, c.title, c.model, c.created_at, c.updated_at
-       FROM conversations c
-       LEFT JOIN messages m ON m.conversation_id = c.id
-       WHERE c.user_id = ? AND (c.title LIKE ? OR m.content LIKE ?)
-       ORDER BY c.updated_at DESC`,
-      [userId, query, query],
+      `SELECT m.id AS message_id,
+              c.id AS conversation_id,
+              c.title AS conversation_title,
+              m.role,
+              m.content,
+              m.created_at
+         FROM messages m
+         JOIN conversations c ON m.conversation_id = c.id
+         WHERE c.user_id = ? AND m.content LIKE ?
+         ORDER BY m.created_at DESC`,
+      [userId, `%${queryText}%`],
     );
+
     res.json(rows);
   } catch (err) {
     console.error("Search conversations error:", err.message);
