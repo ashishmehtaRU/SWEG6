@@ -246,6 +246,12 @@
         max-height: calc(100vh - 320px);
       }
 
+      .conversation-card.highlighted {
+        background: #fff7e6;
+        border-color: #f0b84d;
+        box-shadow: 0 0 0 3px rgba(240, 184, 77, 0.18);
+      }
+
       .chat-message {
         max-width: 85%;
         padding: 16px;
@@ -365,6 +371,13 @@
       .conversation-card h4 {
         margin-bottom: 6px;
         color: #2d3b6b;
+      }
+
+      .conversation-summary mark {
+        background: #fff3b0;
+        color: #4a3e00;
+        padding: 0 2px;
+        border-radius: 3px;
       }
 
       .conversation-card .conversation-meta {
@@ -901,6 +914,25 @@
                 New Conversation
               </button>
             </div>
+            <div class="conversation-toolbar">
+              <input
+                id="conversationSearch"
+                type="text"
+                placeholder="Search previous conversations"
+                onkeydown="if (event.key === 'Enter') searchConversations();"
+              />
+              <button class="submit-btn" onclick="searchConversations()">
+                Search
+              </button>
+              <button
+                class="clear-btn"
+                onclick="clearConversationSearch()"
+                id="clearSearchBtn"
+                style="display: none"
+              >
+                Clear
+              </button>
+            </div>
             <div class="conversation-count" id="conversationCount">
               Loading conversations...
             </div>
@@ -1193,52 +1225,95 @@
         currentUser = user;
       }
 
-      async function loadConversations() {
+      async function loadConversations(searchQuery = "") {
         const listEl = document.getElementById("conversationList");
         const countEl = document.getElementById("conversationCount");
         listEl.innerHTML = '<p class="no-history">Loading conversations...</p>';
 
         try {
-          const response = await fetch(
-            `${API_BASE}/conversations/${currentUser.id}`,
-          );
+          const endpoint = searchQuery
+            ? `${API_BASE}/conversations/search/${currentUser.id}?q=${encodeURIComponent(
+                searchQuery,
+              )}`
+            : `${API_BASE}/conversations/${currentUser.id}`;
+          const response = await fetch(endpoint);
           if (!response.ok) throw new Error("Unable to load conversations");
 
-          const conversations = await response.json();
-          if (!Array.isArray(conversations) || conversations.length === 0) {
-            countEl.textContent = "No conversations yet.";
-            listEl.innerHTML =
-              '<p class="no-history">No conversations yet. Create one to get started.</p>';
+          const rows = await response.json();
+          const searchInput = document.getElementById("conversationSearch");
+          const clearButton = document.getElementById("clearSearchBtn");
+          if (searchInput && searchInput.value.trim()) {
+            clearButton.style.display = "inline-block";
+          } else if (clearButton) {
+            clearButton.style.display = "none";
+          }
+
+          if (!Array.isArray(rows) || rows.length === 0) {
+            if (searchQuery && searchQuery.trim()) {
+              countEl.textContent = "No matches found.";
+              listEl.innerHTML = `<p class="no-history">No text matches found for "${escapeHtml(
+                searchQuery,
+              )}".</p>`;
+            } else {
+              countEl.textContent = "No conversations yet.";
+              listEl.innerHTML =
+                '<p class="no-history">No conversations yet. Create one to get started.</p>';
+            }
             currentConversation = null;
             updateActiveConversationSection();
             return;
           }
 
-          countEl.textContent = `${conversations.length} conversation(s)`;
+          if (searchQuery && searchQuery.trim()) {
+            countEl.textContent = `${rows.length} text match(es)`;
+          } else {
+            countEl.textContent = `${rows.length} conversation(s)`;
+          }
           listEl.innerHTML = "";
-          conversations.forEach((conversation) => {
+          rows.forEach((row) => {
             const card = document.createElement("div");
             card.className = "conversation-card";
             if (
               currentConversation &&
-              currentConversation.id === conversation.id
+              currentConversation.id === row.conversation_id
             ) {
               card.classList.add("active");
             }
-            const preview = truncateText(
-              conversation.last_message || "No messages yet",
-              50,
-            );
-            card.innerHTML = `
-              <h4>${escapeHtml(conversation.title)}</h4>
-              <p class="conversation-summary">${escapeHtml(preview)}</p>
-              <div class="conversation-meta">
-                <span>${new Date(conversation.updated_at).toLocaleString()}</span>
-              </div>
-            `;
-            card.addEventListener("click", () => {
-              selectConversation(conversation.id);
-            });
+
+            if (searchQuery && searchQuery.trim()) {
+              const preview = truncateText(row.content || "", 80);
+              const highlighted = highlightQuery(preview, searchQuery);
+              card.innerHTML = `
+                <h4>${escapeHtml(row.conversation_title || "Untitled")}</h4>
+                <p class="conversation-summary">${highlighted}</p>
+                <div class="conversation-meta">
+                  <span>${escapeHtml(row.role || "message")}</span>
+                  <span>${new Date(row.created_at).toLocaleTimeString()}</span>
+                </div>
+              `;
+              card.addEventListener("click", () => {
+                card.classList.add("highlighted");
+                setTimeout(() => {
+                  card.classList.remove("highlighted");
+                }, 1500);
+                selectConversation(row.conversation_id);
+              });
+            } else {
+              const preview = truncateText(
+                row.last_message || "No messages yet",
+                50,
+              );
+              card.innerHTML = `
+                <h4>${escapeHtml(row.title)}</h4>
+                <p class="conversation-summary">${escapeHtml(preview)}</p>
+                <div class="conversation-meta">
+                  <span>${new Date(row.updated_at).toLocaleString()}</span>
+                </div>
+              `;
+              card.addEventListener("click", () => {
+                selectConversation(row.id);
+              });
+            }
             listEl.appendChild(card);
           });
         } catch (error) {
@@ -1284,6 +1359,25 @@
         await loadConversationDetails(conversationId);
       }
 
+      async function searchConversations() {
+        const query = document
+          .getElementById("conversationSearch")
+          .value.trim();
+        await loadConversations(query);
+      }
+
+      function clearConversationSearch() {
+        const searchInput = document.getElementById("conversationSearch");
+        const clearButton = document.getElementById("clearSearchBtn");
+        if (searchInput) {
+          searchInput.value = "";
+        }
+        if (clearButton) {
+          clearButton.style.display = "none";
+        }
+        loadConversations();
+      }
+
       async function loadConversationDetails(conversationId) {
         const historyEl = document.getElementById("conversationHistory");
         historyEl.innerHTML = '<p class="no-history">Loading history...</p>';
@@ -1311,6 +1405,13 @@
         const normalized = text.toString().trim();
         if (normalized.length <= maxLength) return normalized;
         return normalized.slice(0, maxLength - 1).trim() + "…";
+      }
+
+      function highlightQuery(text, query) {
+        if (!text || !query) return escapeHtml(text);
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`(${escapedQuery})`, "gi");
+        return escapeHtml(text).replace(regex, "<mark>$1</mark>");
       }
 
       function renderConversationHistory(messages) {
