@@ -4,6 +4,7 @@ const db = require("./db");
 
 const router = express.Router();
 const DEFAULT_LLM_MODEL = "llama3:8b";
+const DEFAULT_MULTI_MODELS = ["llama3:8b", "deepseek-r1:8b", "mistral"];
 
 const dbRun = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -38,11 +39,40 @@ const dbAll = (sql, params = []) =>
     });
   });
 
-const generateLLMResponse = async (prompt, model) => {
+function createBatchId() {
+  return `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function chooseBestResponse(responses) {
+  let bestIndex = 0;
+  let bestScore = -1;
+
+  responses.forEach((item, index) => {
+    const text = (item.response || "").trim();
+    const score = text.length;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
+}
+
+const generateLLMResponse = async (prompt, model, options = {}) => {
   const response = await fetch("http://localhost:11434/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, stream: false }),
+    body: JSON.stringify({
+      model,
+      prompt,
+      stream: false,
+      options: {
+        temperature: options.temperature ?? 1.0,
+        top_p: options.top_p ?? 0.95,
+        repeat_penalty: options.repeat_penalty ?? 1.1,
+      },
+    }),
   });
 
   if (!response.ok) {
@@ -52,6 +82,23 @@ const generateLLMResponse = async (prompt, model) => {
   const data = await response.json();
   return data.response || data.output || "";
 };
+
+async function generateMultipleLLMResponses(prompt, models, regenerate = false) {
+  const tasks = models.map(async (modelName, index) => {
+    const response = await generateLLMResponse(prompt, modelName, {
+      temperature: regenerate ? 1.15 + index * 0.1 : 0.9 + index * 0.1,
+      top_p: 0.95,
+      repeat_penalty: 1.15,
+    });
+
+    return {
+      model: modelName,
+      response: response || "",
+    };
+  });
+
+  return Promise.all(tasks);
+}
 
 // Google OAuth routes
 router.get(
@@ -63,7 +110,6 @@ router.get(
   "/auth/google/callback",
   passport.authenticate("google", { failureRedirect: "/" }),
   function (req, res) {
-    // Successful authentication, redirect to dashboard
     res.redirect("/dashboard.html");
   },
 );
@@ -115,6 +161,7 @@ router.post("/register", async (req, res) => {
       "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
       [username, email, password],
     );
+
     res.json({ message: "user created" });
   } catch (err) {
     console.error("Register error:", err.message);
@@ -144,9 +191,9 @@ router.post("/login", (req, res, next) => {
         console.error("Login error:", err.message);
         res.status(500).json({ error: err.message });
       } else if (row) {
-        req.login(row, (err) => {
-          if (err) {
-            return next(err);
+        req.login(row, (loginErr) => {
+          if (loginErr) {
+            return next(loginErr);
           }
           res.json({ message: "successful login", user: row });
         });
@@ -163,6 +210,7 @@ router.post("/logout", (req, res) => {
 
 router.post("/conversations", async (req, res) => {
   const { user_id, title, model } = req.body;
+
   if (!user_id) {
     return res.status(400).json({ error: "user_id required" });
   }
@@ -175,6 +223,7 @@ router.post("/conversations", async (req, res) => {
       "INSERT INTO conversations (user_id, title, model) VALUES (?, ?, ?)",
       [user_id, conversationTitle, conversationModel],
     );
+
     res.json({
       message: "conversation created",
       conversationId: result.lastID,
@@ -193,12 +242,17 @@ router.get("/conversations/:userId", async (req, res) => {
   try {
     const rows = await dbAll(
       `SELECT c.id, c.user_id, c.title, c.model, c.created_at, c.updated_at,
-        (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message
-        FROM conversations c
-        WHERE c.user_id = ?
-        ORDER BY c.updated_at DESC`,
+        (SELECT content
+         FROM messages
+         WHERE conversation_id = c.id
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1) AS last_message
+       FROM conversations c
+       WHERE c.user_id = ?
+       ORDER BY c.updated_at DESC`,
       [userId],
     );
+
     res.json(rows);
   } catch (err) {
     console.error("Fetch conversations error:", err.message);
@@ -214,12 +268,16 @@ router.get("/conversation/:conversationId", async (req, res) => {
       "SELECT * FROM conversations WHERE id = ?",
       [conversationId],
     );
+
     if (!conversation) {
       return res.status(404).json({ error: "Conversation not found" });
     }
 
     const messages = await dbAll(
-      "SELECT id, role, content, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at ASC",
+      `SELECT id, role, content, model_name, batch_id, is_recommended, created_at
+       FROM messages
+       WHERE conversation_id = ?
+       ORDER BY created_at ASC, id ASC`,
       [conversationId],
     );
 
@@ -243,6 +301,7 @@ router.post("/conversation/:conversationId/message", async (req, res) => {
       "SELECT * FROM conversations WHERE id = ?",
       [conversationId],
     );
+
     if (!conversation) {
       return res.status(404).json({ error: "Conversation not found" });
     }
@@ -250,6 +309,7 @@ router.post("/conversation/:conversationId/message", async (req, res) => {
     const requestedModel = model
       ? model.trim()
       : conversation.model || DEFAULT_LLM_MODEL;
+
     const shouldReset =
       resetConversation === true || requestedModel !== conversation.model;
 
@@ -270,6 +330,7 @@ router.post("/conversation/:conversationId/message", async (req, res) => {
     );
 
     const output = await generateLLMResponse(prompt, requestedModel);
+
     await dbRun(
       "INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)",
       [conversationId, "assistant", output],
@@ -288,6 +349,90 @@ router.post("/conversation/:conversationId/message", async (req, res) => {
   }
 });
 
+router.post("/conversation/:conversationId/multi-response", async (req, res) => {
+  const conversationId = req.params.conversationId;
+  const { prompt, models, regenerate } = req.body;
+
+  if (!prompt || !prompt.toString().trim()) {
+    return res.status(400).json({ error: "Prompt required" });
+  }
+
+  try {
+    const conversation = await dbGet(
+      "SELECT * FROM conversations WHERE id = ?",
+      [conversationId],
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    const selectedModels =
+      Array.isArray(models) && models.length === 3
+        ? models.map((m) => m.toString().trim())
+        : DEFAULT_MULTI_MODELS;
+
+   const batchId = createBatchId();
+   const cleanPrompt = prompt.toString().trim();
+
+    await dbRun(
+      `INSERT INTO messages (conversation_id, role, content, batch_id)
+      VALUES (?, ?, ?, ?)`,
+      [conversationId, "user", cleanPrompt, batchId],
+    );
+
+  const variedPrompt =
+  regenerate === true
+    ? `Answer the same request in a different style or wording than before.\n\n${cleanPrompt}`
+    : cleanPrompt;
+
+const results = await generateMultipleLLMResponses(
+  variedPrompt,
+  selectedModels,
+  regenerate === true
+);
+
+    const bestIndex = chooseBestResponse(results);
+
+    for (let i = 0; i < results.length; i += 1) {
+      const item = results[i];
+      await dbRun(
+        `INSERT INTO messages (conversation_id, role, content, model_name, batch_id, is_recommended)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          conversationId,
+          "assistant",
+          item.response,
+          item.model,
+          batchId,
+          i === bestIndex ? 1 : 0,
+        ],
+      );
+    }
+
+    await dbRun(
+      "UPDATE conversations SET updated_at = datetime('now') WHERE id = ?",
+      [conversationId],
+    );
+
+    res.json({
+      message: regenerate ? "responses regenerated" : "responses generated",
+      conversationId: Number(conversationId),
+      batchId,
+      prompt: cleanPrompt,
+      recommendedIndex: bestIndex,
+      responses: results.map((item, index) => ({
+        model: item.model,
+        response: item.response,
+        recommended: index === bestIndex,
+      })),
+    });
+  } catch (err) {
+    console.error("Multi-response error:", err.message);
+    res.status(500).json({ error: "Unable to generate responses" });
+  }
+});
+
 router.patch("/conversation/:conversationId/model", async (req, res) => {
   const conversationId = req.params.conversationId;
   const { model, reset } = req.body;
@@ -301,6 +446,7 @@ router.patch("/conversation/:conversationId/model", async (req, res) => {
       "SELECT * FROM conversations WHERE id = ?",
       [conversationId],
     );
+
     if (!conversation) {
       return res.status(404).json({ error: "Conversation not found" });
     }
@@ -340,7 +486,11 @@ router.get("/conversations/search/:userId", async (req, res) => {
     if (!queryText) {
       const rows = await dbAll(
         `SELECT c.id, c.user_id, c.title, c.model, c.created_at, c.updated_at,
-          (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message
+          (SELECT content
+           FROM messages
+           WHERE conversation_id = c.id
+           ORDER BY created_at DESC, id DESC
+           LIMIT 1) AS last_message
          FROM conversations c
          WHERE c.user_id = ?
          ORDER BY c.updated_at DESC`,
@@ -356,10 +506,10 @@ router.get("/conversations/search/:userId", async (req, res) => {
               m.role,
               m.content,
               m.created_at
-         FROM messages m
-         JOIN conversations c ON m.conversation_id = c.id
-         WHERE c.user_id = ? AND m.content LIKE ?
-         ORDER BY m.created_at DESC`,
+       FROM messages m
+       JOIN conversations c ON m.conversation_id = c.id
+       WHERE c.user_id = ? AND m.content LIKE ?
+       ORDER BY m.created_at DESC`,
       [userId, `%${queryText}%`],
     );
 
@@ -423,6 +573,7 @@ router.post("/reviews", (req, res) => {
         console.error("Create review error:", err.message);
         return res.status(500).json({ error: "Unable to save review" });
       }
+
       res.json({
         message: "review submitted",
         id: this.lastID,
