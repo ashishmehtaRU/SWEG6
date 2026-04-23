@@ -474,6 +474,85 @@
         color: #333;
       }
 
+      .active-model-row {
+        margin: 16px 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        color: #2f4ad9;
+        font-size: 14px;
+      }
+
+      .comparison-indicator {
+        background: #e8f0ff;
+        color: #2f4ad9;
+        border: 1px solid #c7d8ff;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+      }
+
+      .comparison-panel {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin: 16px 0;
+      }
+
+      .comparison-card {
+        background: white;
+        border: 1px solid #dde3f1;
+        border-radius: 16px;
+        padding: 18px;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .comparison-card h4 {
+        margin: 0;
+        font-size: 16px;
+        color: #2d3b6b;
+      }
+
+      .comparison-card .response-status {
+        font-size: 13px;
+        color: #67718a;
+      }
+
+      .comparison-card pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #f6f8ff;
+        border-radius: 12px;
+        padding: 12px;
+        flex: 1;
+        overflow: auto;
+        color: #1f3c88;
+      }
+
+      .comparison-card button {
+        align-self: flex-start;
+        border: none;
+        background: #667eea;
+        color: white;
+        padding: 10px 16px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      .comparison-card button:disabled {
+        background: #bbb;
+        cursor: not-allowed;
+      }
+
+      .comparison-card button:hover:not(:disabled) {
+        background: #4e67e5;
+      }
+
       .conversation-actions {
         gap: 10px;
       }
@@ -963,6 +1042,17 @@
               </button>
             </div>
 
+            <div class="active-model-row">
+              <span>Active LLM:</span>
+              <strong id="activeModelName">llama3:8b</strong>
+              <span
+                id="comparisonIndicator"
+                class="comparison-indicator"
+              ></span>
+            </div>
+
+            <div id="comparisonPanel" class="comparison-panel"></div>
+
             <div class="chat-history" id="conversationHistory">
               <p class="no-history">
                 Select a conversation to view history here.
@@ -1114,31 +1204,270 @@
           return;
         }
 
+        if (comparisonPending) {
+          alert(
+            "Please choose a response from the current comparison before sending another prompt.",
+          );
+          return;
+        }
+
         submitBtn.disabled = true;
 
         try {
-          const response = await fetch(
-            `${API_BASE}/conversation/${currentConversation.id}/message`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ prompt: promptText }),
-            },
-          );
+          const shouldCompare = promptCounter % 3 === 1;
+          document.getElementById("promptInput").value = "";
 
-          const data = await response.json();
-          if (response.ok) {
-            document.getElementById("promptInput").value = "";
-            await loadConversationDetails(currentConversation.id);
+          if (shouldCompare) {
+            await storeUserPrompt(promptText);
+            comparisonPending = true;
+            comparisonState = COMPARE_MODELS.map((model) => ({
+              model,
+              status: "pending",
+              output: "",
+              displayText: "",
+              error: null,
+            }));
+            renderComparisonPanel();
+            await startParallelComparison(promptText);
           } else {
-            alert(data.error || "Failed to generate response.");
+            appendUserMessageToHistory(promptText);
+            const response = await fetch(
+              `${API_BASE}/conversation/${currentConversation.id}/message`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  prompt: promptText,
+                  model: activeModel,
+                }),
+              },
+            );
+
+            const data = await response.json();
+            if (response.ok) {
+              await simulateSingleResponseStream(data.response || "");
+              promptCounter += 1;
+              await loadConversationDetails(currentConversation.id);
+            } else {
+              alert(data.error || "Failed to generate response.");
+            }
           }
         } catch (error) {
           alert("Connection error. Is the server running?");
         } finally {
           submitBtn.disabled = false;
           document.getElementById("promptInput").focus();
+          updateActiveConversationSection();
         }
+      }
+
+      async function storeUserPrompt(promptText) {
+        const response = await fetch(
+          `${API_BASE}/conversation/${currentConversation.id}/prompt`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: promptText }),
+          },
+        );
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Unable to store prompt");
+        }
+      }
+
+      async function startParallelComparison(promptText) {
+        const inferencePromises = COMPARE_MODELS.map(async (model) => {
+          const modelIndex = comparisonState.findIndex(
+            (entry) => entry.model === model,
+          );
+          try {
+            const response = await fetch(`${API_BASE}/llm/infer`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ prompt: promptText, model }),
+            });
+
+            if (!response.ok) {
+              const err = await response.json();
+              throw new Error(err.error || `Failed to query ${model}`);
+            }
+
+            const data = await response.json();
+            comparisonState[modelIndex] = {
+              model,
+              status: "streaming",
+              output: data.output || "",
+              displayText: "",
+              error: null,
+            };
+            renderComparisonPanel();
+            await simulateComparisonStream(
+              modelIndex,
+              comparisonState[modelIndex].output,
+            );
+          } catch (error) {
+            comparisonState[modelIndex] = {
+              model,
+              status: "error",
+              output: "",
+              displayText: "",
+              error: error.message,
+            };
+            renderComparisonPanel();
+          }
+        });
+
+        await Promise.all(inferencePromises);
+      }
+
+      function renderComparisonPanel() {
+        const panel = document.getElementById("comparisonPanel");
+        if (!comparisonPending || comparisonState.length === 0) {
+          panel.innerHTML = "";
+          return;
+        }
+
+        panel.innerHTML = comparisonState
+          .map((entry) => {
+            const statusText =
+              entry.status === "pending"
+                ? "Waiting for response..."
+                : entry.status === "streaming"
+                  ? "Streaming response..."
+                  : entry.status === "error"
+                    ? `Error: ${escapeHtml(entry.error)}`
+                    : "Response received";
+            const buttonDisabled =
+              entry.status !== "complete" ? "disabled" : "";
+            const content =
+              entry.status === "error"
+                ? escapeHtml(entry.error)
+                : escapeHtml(entry.displayText || entry.output || "");
+
+            return `
+              <div class="comparison-card">
+                <h4>${escapeHtml(entry.model)}</h4>
+                <div class="response-status">${statusText}</div>
+                <pre>${content}</pre>
+                <button ${buttonDisabled} onclick="selectComparisonModel('${encodeURIComponent(
+                  entry.model,
+                )}')">
+                  Choose ${escapeHtml(entry.model)}
+                </button>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      async function selectComparisonModel(encodedModel) {
+        const modelName = decodeURIComponent(encodedModel);
+        const selected = comparisonState.find(
+          (entry) => entry.model === modelName,
+        );
+        if (!selected || selected.status !== "complete") {
+          alert("Please choose a model with a completed response.");
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${API_BASE}/conversation/${currentConversation.id}/assistant`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: modelName,
+                content: selected.output,
+              }),
+            },
+          );
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Unable to save selected response");
+          }
+          activeModel = modelName;
+          promptCounter += 1;
+          comparisonPending = false;
+          comparisonState = [];
+          document.getElementById("comparisonPanel").innerHTML = "";
+          await loadConversationDetails(currentConversation.id);
+          updateActiveConversationSection();
+        } catch (error) {
+          alert("Error selecting model: " + error.message);
+        }
+      }
+
+      function simulateComparisonStream(modelIndex, fullText) {
+        return new Promise((resolve) => {
+          if (!fullText) {
+            comparisonState[modelIndex].displayText = "";
+            comparisonState[modelIndex].status = "complete";
+            renderComparisonPanel();
+            return resolve();
+          }
+
+          const words = fullText.split(/\s+/).filter(Boolean);
+          let index = 0;
+          comparisonState[modelIndex].displayText = "";
+          renderComparisonPanel();
+
+          function nextChunk() {
+            if (index >= words.length) {
+              comparisonState[modelIndex].status = "complete";
+              renderComparisonPanel();
+              resolve();
+              return;
+            }
+
+            const chunk = words.slice(index, index + 3).join(" ");
+            comparisonState[modelIndex].displayText +=
+              (comparisonState[modelIndex].displayText ? " " : "") + chunk;
+            index += 3;
+            renderComparisonPanel();
+            setTimeout(nextChunk, 80 + Math.random() * 120);
+          }
+
+          nextChunk();
+        });
+      }
+
+      function simulateSingleResponseStream(fullText) {
+        return new Promise((resolve) => {
+          const historyEl = document.getElementById("conversationHistory");
+          const bubble = document.createElement("div");
+          bubble.className = "history-message history-role-assistant";
+          bubble.innerHTML = `
+            <div class="history-meta"><strong>${escapeHtml(
+              "Assistant",
+            )}</strong> • ${new Date().toLocaleTimeString()}</div>
+            <div class="assistant-stream-text">Typing...</div>
+          `;
+          historyEl.appendChild(bubble);
+          historyEl.scrollTop = historyEl.scrollHeight;
+
+          const textNode = bubble.querySelector(".assistant-stream-text");
+          const words = fullText.split(/\s+/).filter(Boolean);
+          let index = 0;
+          textNode.textContent = "";
+
+          function nextChunk() {
+            if (index >= words.length) {
+              resolve();
+              return;
+            }
+
+            const chunk = words.slice(index, index + 3).join(" ");
+            textNode.textContent += (textNode.textContent ? " " : "") + chunk;
+            index += 3;
+            historyEl.scrollTop = historyEl.scrollHeight;
+            setTimeout(nextChunk, 80 + Math.random() * 120);
+          }
+
+          nextChunk();
+        });
       }
 
       // Handle Logout
@@ -1176,8 +1505,13 @@
       });
 
       const API_BASE = "http://localhost:3000/api";
+      const COMPARE_MODELS = ["llama3:8b", "gemma3:4b"];
       let currentUser = { id: 1, name: "Guest" };
       let currentConversation = null;
+      let activeModel = "llama3:8b";
+      let promptCounter = 1;
+      let comparisonState = [];
+      let comparisonPending = false;
 
       async function checkAuth() {
         try {
@@ -1390,6 +1724,7 @@
 
           const data = await response.json();
           currentConversation = data.conversation;
+          activeModel = data.conversation.model || activeModel;
           renderConversationHistory(data.messages || []);
           updateActiveConversationSection();
           await loadConversations();
@@ -1441,6 +1776,27 @@
         historyEl.scrollTop = historyEl.scrollHeight;
       }
 
+      function appendUserMessageToHistory(promptText) {
+        const historyEl = document.getElementById("conversationHistory");
+        if (!historyEl) return;
+
+        if (historyEl.querySelector(".no-history")) {
+          historyEl.innerHTML = "";
+        }
+
+        const messageEl = document.createElement("div");
+        messageEl.className = "history-message history-role-user";
+        messageEl.innerHTML = `
+          <div class="history-meta"><strong>${escapeHtml(
+            "You",
+          )}</strong> • ${new Date().toLocaleTimeString()}</div>
+          <div>${escapeHtml(promptText)}</div>
+        `;
+
+        historyEl.appendChild(messageEl);
+        historyEl.scrollTop = historyEl.scrollHeight;
+      }
+
       async function resetConversation() {
         if (!currentConversation) return;
         try {
@@ -1469,18 +1825,33 @@
         const titleEl = document.getElementById("activeConversationTitle");
         const statusEl = document.getElementById("activeConversationStatus");
         const resetBtn = document.getElementById("resetBtn");
+        const modelNameEl = document.getElementById("activeModelName");
+        const comparisonIndicator = document.getElementById(
+          "comparisonIndicator",
+        );
 
         if (!currentConversation) {
           titleEl.textContent = "No conversation selected";
           statusEl.textContent =
             "Pick a conversation from the left or create a new one.";
           resetBtn.disabled = true;
+          if (modelNameEl) modelNameEl.textContent = activeModel;
+          if (comparisonIndicator) comparisonIndicator.textContent = "";
           return;
         }
 
         titleEl.textContent = currentConversation.title;
-        statusEl.textContent = `Back-and-forth conversation is ready.`;
+        statusEl.textContent =
+          "Back-and-forth conversation is ready. Continue with the selected model.";
         resetBtn.disabled = false;
+        if (modelNameEl) modelNameEl.textContent = activeModel;
+
+        if (comparisonIndicator) {
+          comparisonIndicator.textContent =
+            promptCounter % 3 === 1 && !comparisonPending
+              ? "Next prompt will compare models"
+              : "";
+        }
       }
 
       function setUpRatingStars() {

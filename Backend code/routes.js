@@ -230,6 +230,87 @@ router.get("/conversation/:conversationId", async (req, res) => {
   }
 });
 
+router.post("/conversation/:conversationId/prompt", async (req, res) => {
+  const conversationId = req.params.conversationId;
+  const { prompt } = req.body;
+
+  if (!prompt || !prompt.toString().trim()) {
+    return res.status(400).json({ error: "Prompt required" });
+  }
+
+  try {
+    const conversation = await dbGet(
+      "SELECT * FROM conversations WHERE id = ?",
+      [conversationId],
+    );
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    await dbRun(
+      "INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)",
+      [conversationId, "user", prompt],
+    );
+
+    await dbRun(
+      "UPDATE conversations SET updated_at = datetime('now') WHERE id = ?",
+      [conversationId],
+    );
+
+    res.json({
+      message: "prompt stored",
+      conversationId: Number(conversationId),
+    });
+  } catch (err) {
+    console.error("Store prompt error:", err.message);
+    res.status(500).json({ error: "Unable to store prompt" });
+  }
+});
+
+router.post("/conversation/:conversationId/assistant", async (req, res) => {
+  const conversationId = req.params.conversationId;
+  const { model, content } = req.body;
+
+  if (!model || !model.toString().trim()) {
+    return res.status(400).json({ error: "Model required" });
+  }
+  if (!content || !content.toString().trim()) {
+    return res.status(400).json({ error: "Assistant content required" });
+  }
+
+  try {
+    const conversation = await dbGet(
+      "SELECT * FROM conversations WHERE id = ?",
+      [conversationId],
+    );
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    const normalizedModel = model.toString().trim();
+    const labeledContent = `[${normalizedModel}] ${content}`;
+
+    await dbRun(
+      "INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)",
+      [conversationId, "assistant", labeledContent],
+    );
+
+    await dbRun(
+      "UPDATE conversations SET model = ?, updated_at = datetime('now') WHERE id = ?",
+      [normalizedModel, conversationId],
+    );
+
+    res.json({
+      message: "assistant response saved",
+      conversationId: Number(conversationId),
+      model: normalizedModel,
+    });
+  } catch (err) {
+    console.error("Save assistant response error:", err.message);
+    res.status(500).json({ error: "Unable to save assistant response" });
+  }
+});
+
 router.post("/conversation/:conversationId/message", async (req, res) => {
   const conversationId = req.params.conversationId;
   const { prompt, model, resetConversation } = req.body;

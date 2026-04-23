@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "cucumber-js",
+    "test:unit": "npx jasmine \"../spec/**/*[sS]pec.?(m)js\"",
+    "test:e2e": "cucumber-js",
     "test:smoke": "cucumber-js --tags @smoke",
     "test:login": "cucumber-js --tags @login",
     "test:signup": "cucumber-js --tags @signup",

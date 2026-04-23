@@ -20,7 +20,7 @@ describe("Iteration 2 Backend Routes", () => {
             if (err) return done(err);
             testUserId = this.lastID;
             done();
-          }
+          },
         );
       });
     });
@@ -32,8 +32,8 @@ describe("Iteration 2 Backend Routes", () => {
         return Promise.resolve({
           ok: true,
           json: async () => ({
-            response: "Mock Ollama response"
-          })
+            response: "Mock Ollama response",
+          }),
         });
       }
       return Promise.reject(new Error("Unexpected fetch call"));
@@ -114,6 +114,33 @@ describe("Iteration 2 Backend Routes", () => {
       });
   });
 
+  it("should store a prompt only for comparison rounds", (done) => {
+    request(app)
+      .post(`/api/conversation/${createdConversationId}/prompt`)
+      .send({ prompt: "Compare this" })
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err);
+        expect(res.body.message).toBe("prompt stored");
+        expect(res.body.conversationId).toBe(createdConversationId);
+        done();
+      });
+  });
+
+  it("should save a selected assistant response and update the conversation model", (done) => {
+    request(app)
+      .post(`/api/conversation/${createdConversationId}/assistant`)
+      .send({ model: "gemma3:4b", content: "Selected output" })
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err);
+        expect(res.body.message).toBe("assistant response saved");
+        expect(res.body.conversationId).toBe(createdConversationId);
+        expect(res.body.model).toBe("gemma3:4b");
+        done();
+      });
+  });
+
   it("should reject adding a message with no prompt", (done) => {
     request(app)
       .post(`/api/conversation/${createdConversationId}/message`)
@@ -185,7 +212,7 @@ describe("Iteration 2 Backend Routes", () => {
       .post("/api/reviews")
       .send({
         user_id: testUserId,
-        review_text: "Great app"
+        review_text: "Great app",
       })
       .expect(200)
       .end((err, res) => {
@@ -201,7 +228,7 @@ describe("Iteration 2 Backend Routes", () => {
       .post("/api/reviews")
       .send({
         user_id: testUserId,
-        review_text: "   "
+        review_text: "   ",
       })
       .expect(400)
       .end((err, res) => {
