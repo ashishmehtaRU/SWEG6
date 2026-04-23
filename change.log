@@ -1,4 +1,0 @@
-Feature 1: View past conversation history. [PR #14](https://github.com/ashishmehtaRU/SWEG6/pull/14)
-Feature 2: Continue a previous conversation. [PR #14](https://github.com/ashishmehtaRU/SWEG6/pull/14)
-Feature 3: Notify user if an account with the same email already exists during signup. [PR #14](https://github.com/ashishmehtaRU/SWEG6/pull/14)
-Feature 4: CI/CD setup for coding style using ESLint. [PR #15](https://github.com/ashishmehtaRU/SWEG6/pull/15)
