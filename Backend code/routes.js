@@ -448,4 +448,29 @@ router.get("/reviews", (req, res) => {
   );
 });
 
+router.post("/llm/compare", async (req, res) => {
+  const { prompt } = req.body;
+
+  if (!prompt || !prompt.trim()) {
+    return res.status(400).json({ error: "Prompt required" });
+  }
+
+  res.json({
+    responses: [
+      {
+        model: "LLM Response 1",
+        output: `Detailed answer: ${prompt}`,
+      },
+      {
+        model: "LLM Response 2",
+        output: `Simple answer: ${prompt}`,
+      },
+      {
+        model: "LLM Response 3",
+        output: `Alternative perspective: ${prompt}`,
+      },
+    ],
+  });
+});
+
 module.exports = router;
