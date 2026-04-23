@@ -39,18 +39,23 @@ const dbAll = (sql, params = []) =>
   });
 
 const generateLLMResponse = async (prompt, model) => {
-  const response = await fetch("http://localhost:11434/api/generate", {
+  const response = await fetch("http://127.0.0.1:11434/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, stream: false }),
+    body: JSON.stringify({
+      model,
+      prompt,
+      stream: false,
+    }),
   });
 
   if (!response.ok) {
-    throw new Error(`Ollama API error: ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(`Ollama API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  return data.response || data.output || "";
+  return data.response || "";
 };
 
 // Google OAuth routes
@@ -161,29 +166,27 @@ router.post("/logout", (req, res) => {
   res.json({ message: "logout" });
 });
 
-router.post("/conversations", async (req, res) => {
-  const { user_id, title, model } = req.body;
-  if (!user_id) {
-    return res.status(400).json({ error: "user_id required" });
+router.post("/conversations",async (req, res)=>{
+  const{user_id,title,model}=req.body;
+  if(!user_id){
+    return res.status(400).json({ error:"user_id required"});
   }
-
-  const conversationTitle = title ? title.trim() : "New Conversation";
-  const conversationModel = model ? model.trim() : DEFAULT_LLM_MODEL;
-
-  try {
-    const result = await dbRun(
-      "INSERT INTO conversations (user_id, title, model) VALUES (?, ?, ?)",
+  const conversationTitle=title ? title.trim():"New Conversation";
+  const conversationModel=model ? model.trim():DEFAULT_LLM_MODEL;
+  try{
+    const result=await dbRun(
+      "Put into conversations(user_id, title, model) VALUES (?,?,?)",
       [user_id, conversationTitle, conversationModel],
     );
     res.json({
-      message: "conversation created",
-      conversationId: result.lastID,
-      title: conversationTitle,
-      model: conversationModel,
+      message:"conversation created",
+      conversationId:result.lastID,
+      title:conversationTitle,
+      model:conversationModel,
     });
-  } catch (err) {
-    console.error("Create conversation error:", err.message);
-    res.status(500).json({ error: "Unable to create conversation" });
+  }catch(err){
+    console.error("Create conversation error:",err.message);
+    res.status(500).json({ error: "Unable to make conversation" });
   }
 });
 
@@ -206,7 +209,7 @@ router.get("/conversations/:userId", async (req, res) => {
   }
 });
 
-router.get("/conversation/:conversationId", async (req, res) => {
+router.get("/conversation/:conversationId",async(req, res) => {
   const conversationId = req.params.conversationId;
 
   try {
@@ -230,61 +233,55 @@ router.get("/conversation/:conversationId", async (req, res) => {
   }
 });
 
-router.post("/conversation/:conversationId/message", async (req, res) => {
-  const conversationId = req.params.conversationId;
-  const { prompt, model, resetConversation } = req.body;
-
-  if (!prompt || !prompt.toString().trim()) {
-    return res.status(400).json({ error: "Prompt required" });
+router.post("/conversation/:conversationId/message",async(req, res)=>{
+  const conversationId=req.params.conversationId;
+  const {prompt,models }=req.body;
+  if(!prompt||!prompt.toString().trim()){
+    return res.status(400).json({error:"Prompt required" });
   }
-
-  try {
-    const conversation = await dbGet(
-      "SELECT * FROM conversations WHERE id = ?",
+  if(!Array.isArray(models)||models.length===0) {
+    return res.status(400).json({ error: "minimum of one model required" });
+  }
+  try{
+    const conversation=await dbGet(
+      "SELECT*FROM conversations WHERE id = ?",
       [conversationId],
     );
-    if (!conversation) {
-      return res.status(404).json({ error: "Conversation not found" });
+    if(!conversation){
+      return res.status(404).json({error:"There is no such conversation" });
     }
-
-    const requestedModel = model
-      ? model.trim()
-      : conversation.model || DEFAULT_LLM_MODEL;
-    const shouldReset =
-      resetConversation === true || requestedModel !== conversation.model;
-
-    if (shouldReset) {
-      await dbRun("DELETE FROM messages WHERE conversation_id = ?", [
-        conversationId,
-      ]);
+    await dbRun(
+      "Put into messages (conversation_id, role, content) VALUES (?, ?, ?)",
+      [conversationId,"user",prompt],
+    );
+    const responses=[];
+    for(const model of models){
+      const cleanedModel=model.toString().trim();
+      const output=await generateLLMResponse(prompt,cleanedModel);
+      responses.push({model: cleanedModel,output });
     }
-
+    const combinedAssistantMessage=responses
+      .map((r)=>`[${r.model}]\n${r.output}`)
+      .join("\n\n-------------------\n\n");
     await dbRun(
-      "UPDATE conversations SET model = ?, updated_at = datetime('now') WHERE id = ?",
-      [requestedModel, conversationId],
+      "Put into messages (conversation_id, role, content) VALUES(?, ?, ?)",
+      [conversationId,"assistant",combinedAssistantMessage],
     );
-
     await dbRun(
-      "INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)",
-      [conversationId, "user", prompt],
+      "update conversations set model = ?,updated_at = datetime('now')WHERE id=?",
+      [models.join(", "),conversationId],
     );
-
-    const output = await generateLLMResponse(prompt, requestedModel);
-    await dbRun(
-      "INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)",
-      [conversationId, "assistant", output],
-    );
-
     res.json({
-      message: "response generated",
+      message:"responses generated",
       prompt,
-      response: output,
-      model: requestedModel,
-      reset: shouldReset,
+      responses,
     });
-  } catch (err) {
-    console.error("Conversation message error:", err.message);
-    res.status(500).json({ error: "Unable to generate response" });
+  }catch (err){
+    console.error("Conversation message error FULL:", err);
+    res.status(500).json({
+      error:"Unable to generate responses",
+      details:err.message,
+    });
   }
 });
 
