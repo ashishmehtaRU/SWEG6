@@ -6,12 +6,13 @@
   "scripts": {
     "start": "node server.js",
     "test": "cucumber-js",
-    "test:unit": "npx jasmine \"../spec/**/*[sS]pec.?(m)js\"",
+    "test:unit": "npx jasmine --config=spec/support/jasmine.mjs",
     "test:e2e": "cucumber-js",
     "test:smoke": "cucumber-js --tags @smoke",
     "test:login": "cucumber-js --tags @login",
     "test:signup": "cucumber-js --tags @signup",
     "test:validation": "cucumber-js --tags @validation",
+    "test:dashboard": "cucumber-js features/dashboard.feature",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },

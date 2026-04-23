@@ -1,6 +1,6 @@
 const request = require("supertest");
 const express = require("express");
-const routes = require("../Backend code/routes");
+const routes = require("../routes");
 
 describe("Conversation prompt API", function () {
   let app;
@@ -20,7 +20,7 @@ describe("Conversation prompt API", function () {
     });
 
     expect(createRes.statusCode).toBe(200);
-    expect(createRes.body).toHaveProperty("conversationId");
+    expect(createRes.body.conversationId).toBeDefined();
 
     const conversationId = createRes.body.conversationId;
     const promptRes = await request(app)

@@ -1200,8 +1200,25 @@
         }
 
         if (!currentConversation) {
-          alert("Please select or create a conversation first.");
-          return;
+          // Auto-create a conversation
+          const title = `Conversation ${new Date().toLocaleTimeString()}`;
+          const model = "llama3:8b";
+          try {
+            const response = await fetch(`${API_BASE}/conversations`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ user_id: currentUser.id, title, model }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+              throw new Error(data.error || "Unable to create conversation");
+            }
+            currentConversation = { id: data.conversationId, title, model };
+            await loadConversations();
+          } catch (error) {
+            alert("Error creating conversation: " + error.message);
+            return;
+          }
         }
 
         if (comparisonPending) {
