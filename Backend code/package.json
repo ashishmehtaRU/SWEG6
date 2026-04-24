@@ -3,16 +3,17 @@
   "version": "1.0.0",
   "description": "",
   "main": "db.js",
-  "scripts": {
+"scripts": {
     "start": "node server.js",
-    "test": "cucumber-js",
+    "test": "cucumber-js --tags \"@smoke or @multipleResponses\"",
+    "test:acceptance": "cucumber-js",
+    "test:unit": "jasmine \"spec/multiLlmSpec.js\"",
+    "test:multi": "cucumber-js --tags @multipleResponses",
     "test:smoke": "cucumber-js --tags @smoke",
-    "test:login": "cucumber-js --tags @login",
-    "test:signup": "cucumber-js --tags @signup",
-    "test:validation": "cucumber-js --tags @validation",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
+
   "keywords": [],
   "author": "",
   "license": "ISC",

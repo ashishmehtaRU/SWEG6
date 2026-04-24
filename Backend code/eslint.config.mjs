@@ -30,4 +30,19 @@ export default [
       },
     },
   },
+  {
+  files: ["spec/**/*.js"],
+  languageOptions: {
+    globals: {
+      ...globals.node,
+      describe: "readonly",
+      it: "readonly",
+      expect: "readonly",
+      beforeAll: "readonly",
+      beforeEach: "readonly",
+      afterEach: "readonly",
+      spyOn: "readonly",
+    },
+  },
+},
 ];

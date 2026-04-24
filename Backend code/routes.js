@@ -1,9 +1,10 @@
 const express = require("express");
 const passport = require("passport");
 const db = require("./db");
+const { AVAILABLE_MODELS, compareModels } = require("./llmProviders");
 
 const router = express.Router();
-const DEFAULT_LLM_MODEL = "llama3:8b";
+const DEFAULT_LLM_MODEL = "llama3.2:3b";
 
 const dbRun = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -398,6 +399,30 @@ router.post("/llm/infer", async (req, res) => {
     console.error("LLM inference error:", error.message);
     res.status(500).json({
       error: "Failed to connect to Ollama. Make sure Ollama is running.",
+    });
+  }
+});
+
+router.get("/llm/models", (_req, res) => {
+  res.json({ models: AVAILABLE_MODELS });
+});
+
+router.post("/llm/multi-infer", async (req, res) => {
+  const { prompt, models } = req.body;
+
+  if (!prompt || !prompt.toString().trim()) {
+    return res.status(400).json({ error: "Prompt is required" });
+  }
+
+  const requestedModels = Array.isArray(models) ? models : [];
+
+  try {
+    const comparison = await compareModels(prompt.toString().trim(), requestedModels);
+    res.json(comparison);
+  } catch (error) {
+    console.error("Multi-LLM inference error:", error.message);
+    res.status(500).json({
+      error: "Unable to generate multi-model responses",
     });
   }
 });

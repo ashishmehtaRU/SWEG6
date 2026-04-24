@@ -882,25 +882,32 @@
   </head>
   <body>
     <div class="container">
-      <div class="header">
-        <h1><i class="fa-solid fa-robot"></i> LLM Dashboard</h1>
-        <div class="user-profile">
-          <div class="user-info">
-            <div class="welcome-text">Welcome back,</div>
-            <div class="user-name" id="userName">Loading...</div>
-          </div>
-          <img
-            class="user-avatar"
-            id="userAvatar"
-            src=""
-            alt="User Avatar"
-            style="display: none"
-          />
-          <button class="logout-btn" onclick="logout()">Logout</button>
-        </div>
-      </div>
+<div class="header">
+  <h1><i class="fa-solid fa-robot"></i> LLM Dashboard</h1>
 
-      <div class="content">
+  <div class="user-profile">
+    <div class="user-info">
+      <div class="welcome-text">Welcome back,</div>
+      <div class="user-name" id="userName">Loading...</div>
+    </div>
+
+    <img
+      class="user-avatar"
+      id="userAvatar"
+      src=""
+      alt="User Avatar"
+      style="display: none"
+    />
+
+    <button class="logout-btn" onclick="window.location.href='multi.html'">
+      Multi-LLM
+    </button>
+
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div class="content">
         <div class="dashboard-grid">
           <div class="conversation-manager section sidebar">
             <h3><i class="fa-solid fa-folder-open"></i> Conversations</h3>
