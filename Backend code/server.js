@@ -30,6 +30,12 @@ app.use(express.static("../frontend"));
 
 app.use("/api", routes);
 
-app.listen(3000, () => {
-  console.log("server is running");
-});
+const PORT = process.env.PORT || 3000;
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log("server is running");
+  });
+}
+
+module.exports = app;

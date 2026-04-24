@@ -1,7 +1,7 @@
 const { When, Then } = require("@cucumber/cucumber");
 const assert = require("assert");
 
-When('I select {string} as the backend model', async function (model) {
+When('I select {string} as the backend model', async function (_model) {
   const text = await this.page.content();
   assert.ok(text.length > 0);
 });

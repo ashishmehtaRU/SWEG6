@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Multi-LLM Compare</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f6ff;
+        margin: 0;
+        padding: 30px;
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: auto;
+        background: white;
+        border-radius: 18px;
+        padding: 30px;
+        box-shadow: 0 12px 30px rgba(20, 30, 60, 0.08);
+      }
+
+      h1 {
+        margin-top: 0;
+        color: #333;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 14px;
+        font-size: 15px;
+        border: 2px solid #ddd;
+        border-radius: 12px;
+        box-sizing: border-box;
+      }
+
+      button {
+        margin-top: 15px;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .model-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin: 20px 0;
+      }
+
+      .model-option {
+        background: #eef2ff;
+        border: 1px solid #dbe1ff;
+        border-radius: 12px;
+        padding: 12px 16px;
+      }
+
+      .results {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 18px;
+        margin-top: 25px;
+      }
+
+      .card {
+        background: #f8f9ff;
+        border: 1px solid #dbe1ff;
+        border-radius: 16px;
+        padding: 18px;
+        min-height: 180px;
+      }
+
+      .card h3 {
+        margin-top: 0;
+        color: #2d3b6b;
+      }
+
+      .status {
+        font-size: 13px;
+        margin-bottom: 12px;
+        color: #666;
+      }
+
+      .error {
+        color: #b00020;
+        background: #ffe8e8;
+        padding: 10px;
+        border-radius: 8px;
+      }
+
+      .nav {
+        margin-bottom: 20px;
+      }
+
+      .nav a {
+        color: #667eea;
+        font-weight: bold;
+        text-decoration: none;
+      }
+
+      pre {
+        white-space: pre-wrap;
+        font-family: Arial, sans-serif;
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="nav">
+        <a href="dashboard.html">← Back to Dashboard</a>
+      </div>
+
+      <h1>Multi-LLM Response Comparison</h1>
+      <p>
+        Select multiple local models, enter one prompt, and compare the responses.
+      </p>
+
+      <h3>Choose Models</h3>
+      <div id="modelList" class="model-list">Loading models...</div>
+
+      <h3>Prompt</h3>
+      <textarea
+        id="multiPrompt"
+        placeholder="Ask one question and compare answers from multiple LLMs..."
+      ></textarea>
+
+      <button id="compareBtn" onclick="submitMultiPrompt()">
+        Compare Models
+      </button>
+
+      <div id="resultStatus" class="status"></div>
+      <div id="results" class="results"></div>
+    </div>
+
+    <script>
+      const API_BASE = "http://localhost:3000/api";
+
+      async function loadModels() {
+        const modelList = document.getElementById("modelList");
+
+        try {
+          const response = await fetch(`${API_BASE}/llm/models`);
+          const data = await response.json();
+
+          modelList.innerHTML = "";
+
+          data.models.forEach((model, index) => {
+            const wrapper = document.createElement("label");
+            wrapper.className = "model-option";
+            wrapper.innerHTML = `
+              <input type="checkbox" value="${model.id}" ${index < 3 ? "checked" : ""} />
+              ${model.label} (${model.provider})
+            `;
+            modelList.appendChild(wrapper);
+          });
+        } catch (error) {
+          modelList.innerHTML = `<div class="error">Unable to load models.</div>`;
+        }
+      }
+
+      async function submitMultiPrompt() {
+        const prompt = document.getElementById("multiPrompt").value.trim();
+        const compareBtn = document.getElementById("compareBtn");
+        const results = document.getElementById("results");
+        const resultStatus = document.getElementById("resultStatus");
+
+        if (!prompt) {
+          alert("Please enter a prompt.");
+          return;
+        }
+
+        const selectedModels = Array.from(
+          document.querySelectorAll('#modelList input[type="checkbox"]:checked'),
+        ).map((input) => input.value);
+
+        if (selectedModels.length < 2) {
+          alert("Please select at least two models.");
+          return;
+        }
+
+        compareBtn.disabled = true;
+        resultStatus.textContent = "Generating responses...";
+        results.innerHTML = "";
+
+        try {
+          const response = await fetch(`${API_BASE}/llm/multi-infer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt,
+              models: selectedModels,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Unable to generate responses");
+          }
+
+          resultStatus.textContent = `Completed in ${data.totalLatencyMs} ms`;
+
+          results.innerHTML = "";
+          data.results.forEach((item) => {
+            const card = document.createElement("div");
+            card.className = "card";
+
+            if (item.status === "fulfilled") {
+              card.innerHTML = `
+                <h3>${escapeHtml(item.modelLabel)}</h3>
+                <div class="status">${escapeHtml(item.provider)} • ${item.latencyMs} ms</div>
+                <pre>${escapeHtml(item.output)}</pre>
+              `;
+            } else {
+              card.innerHTML = `
+                <h3>${escapeHtml(item.modelLabel)}</h3>
+                <div class="status">${escapeHtml(item.provider)} • failed</div>
+                <div class="error">${escapeHtml(item.error)}</div>
+              `;
+            }
+
+            results.appendChild(card);
+          });
+        } catch (error) {
+          resultStatus.textContent = "";
+          results.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+        } finally {
+          compareBtn.disabled = false;
+        }
+      }
+
+      function escapeHtml(str) {
+        if (!str) return "";
+        return str
+          .toString()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      loadModels();
+    </script>
+  </body>
+</html>
