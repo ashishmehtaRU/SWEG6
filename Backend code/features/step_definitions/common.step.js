@@ -2,7 +2,7 @@ const { Given, Then } = require("@cucumber/cucumber");
 const assert = require("assert");
 
 Given("I open the {string} page", async function (file) {
-  const url = `${this.baseUrl}/frontend/${file}`;
+const url = `${this.baseUrl}/${file}`;
   await this.page.goto(url, { waitUntil: "networkidle2" });
 });
 

@@ -1,28 +1,19 @@
-@multipleResponses @iteration3
-Feature: Generate three responses for one question from 3 different LLMs
+@multipleResponses @Brian
+Feature: Compare multiple LLM responses
 
-  As an authenticated user
-  I want three responses generated for my question
-  So that I can compare them
+  As a user
+  I want to submit one question and receive three responses
+  So that I can compare different answer styles
 
-  Background:
-    Given I am logged into the application
-    And I am on the dashboard page
+  Scenario: User opens the compare page
+    Given I open the "compare.html" page
+    Then I should see the text "Compare Multiple LLMs"
+    And I should see an element with id "prompt"
 
   Scenario: User submits a question and receives three responses
-    When I enter "What is machine learning?" into the prompt box
-    And I submit the prompt
-    Then I should see response 1
-    And I should see response 2
-    And I should see response 3
-
-  Scenario: Three responses are shown separately and clearly
-    When I enter "Define recursion" into the prompt box
-    And I submit the prompt
-    Then each response should be displayed in a separate section
-
-  Scenario: Error appears if responses cannot be generated
-    Given response generation fails
-    When I enter "Explain gravity" into the prompt box
-    And I submit the prompt
-    Then I should see a response generation error message
+    Given I open the "compare.html" page
+    When I enter "What is machine learning?" into the compare prompt box
+    And I click the compare generate button
+    Then I should see the text "Detailed answer: What is machine learning?"
+    And I should see the text "Simple answer: What is machine learning?"
+    And I should see the text "Alternative perspective: What is machine learning?"
