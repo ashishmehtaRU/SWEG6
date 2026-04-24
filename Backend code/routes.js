@@ -455,20 +455,31 @@ router.post("/llm/compare", async (req, res) => {
     return res.status(400).json({ error: "Prompt required" });
   }
 
+  const cleanPrompt = prompt.toLowerCase();
+
+  let mainAnswer = "This question is asking for an explanation of a topic.";
+  let simpleAnswer = "It is something that can be explained in a simple way.";
+  let exampleAnswer = "A useful way to understand it is by looking at a real example.";
+
+  if (cleanPrompt.includes("pizza")) {
+    mainAnswer = "Pizza is a baked food made with dough, sauce, cheese, and toppings.";
+    simpleAnswer = "Pizza is flat bread with sauce and cheese on top.";
+    exampleAnswer = "For example, a cheese pizza has crust, tomato sauce, and melted cheese.";
+  } else if (cleanPrompt.includes("ai") || cleanPrompt.includes("artificial intelligence")) {
+    mainAnswer = "AI is technology that allows computers to perform tasks that usually require human thinking.";
+    simpleAnswer = "AI means computers can make decisions or give answers like a person.";
+    exampleAnswer = "For example, ChatGPT uses AI to understand questions and generate responses.";
+  } else if (cleanPrompt.includes("machine learning")) {
+    mainAnswer = "Machine learning is a type of AI where computers improve by learning patterns from data.";
+    simpleAnswer = "Machine learning means a computer learns from examples.";
+    exampleAnswer = "For example, a spam filter learns from past emails to detect spam.";
+  }
+
   res.json({
     responses: [
-      {
-        model: "LLM Response 1",
-        output: `Detailed answer: ${prompt}`,
-      },
-      {
-        model: "LLM Response 2",
-        output: `Simple answer: ${prompt}`,
-      },
-      {
-        model: "LLM Response 3",
-        output: `Alternative perspective: ${prompt}`,
-      },
+      { model: "Llama3", output: mainAnswer },
+      { model: "Mistral", output: simpleAnswer },
+      { model: "Gemma", output: exampleAnswer },
     ],
   });
 });
