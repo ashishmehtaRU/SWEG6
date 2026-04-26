@@ -5,6 +5,172 @@ const db = require("./db");
 const router = express.Router();
 const DEFAULT_LLM_MODEL = "llama3:8b";
 
+const parseJsonSafe = async (response) => {
+  try {
+    return await response.json();
+  } catch (err) {
+    const text = await response.text();
+    return { _parseError: true, text };
+  }
+};
+
+// Public API functions
+const generateGeminiResponse = async (prompt, model) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Gemini API key not configured");
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const error = await parseJsonSafe(response);
+    const message = error.error?.message || error.text || response.status;
+    throw new Error(`Gemini API error: ${message}`);
+  }
+
+  const data = await parseJsonSafe(response);
+  if (data._parseError) {
+    throw new Error(`Gemini response parse failure: ${data.text}`);
+  }
+
+  return (
+    data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated"
+  );
+};
+
+const generateGroqResponse = async (prompt, model) => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error("Groq API key not configured");
+  }
+
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        max_tokens: 2048,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const error = await parseJsonSafe(response);
+    const message = error.error?.message || error.text || response.status;
+    throw new Error(`Groq API error: ${message}`);
+  }
+
+  const data = await parseJsonSafe(response);
+  if (data._parseError) {
+    throw new Error(`Groq response parse failure: ${data.text}`);
+  }
+
+  return data.choices?.[0]?.message?.content || "No response generated";
+};
+
+const generateHuggingFaceResponse = async (prompt, model) => {
+  const apiKey = process.env.HUGGINGFACE_API_KEY;
+  if (!apiKey) {
+    throw new Error("Hugging Face API key not configured");
+  }
+
+  const response = await fetch(
+    "https://router.huggingface.co/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        max_tokens: 512,
+        stream: false,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const error = await parseJsonSafe(response);
+    const message =
+      error.error?.message || error.error || error.text || response.status;
+    throw new Error(`Hugging Face API error: ${message}`);
+  }
+
+  const data = await parseJsonSafe(response);
+  if (data._parseError) {
+    throw new Error(`Hugging Face response parse failure: ${data.text}`);
+  }
+
+  if (data.choices && data.choices.length > 0) {
+    return data.choices[0]?.message?.content || "No response generated";
+  }
+
+  return (
+    data?.message?.content || data?.generated_text || "No response generated"
+  );
+};
+
+const generateLLMResponse = async (prompt, model) => {
+  // Route to appropriate LLM provider
+  if (model === "gemini-2.5-flash") {
+    return generateGeminiResponse(prompt, model);
+  } else if (model === "llama-3.1-8b-instant" || model === "llama3-70b-8192") {
+    return generateGroqResponse(prompt, model);
+  } else if (model === "openai/gpt-oss-120b") {
+    return generateHuggingFaceResponse(prompt, model);
+  } else {
+    // Default to local Ollama
+    const response = await fetch("http://localhost:11434/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model, prompt, stream: false }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ollama API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.response || data.output || "";
+  }
+};
+
 const dbRun = (sql, params = []) =>
   new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
@@ -37,21 +203,6 @@ const dbAll = (sql, params = []) =>
       }
     });
   });
-
-const generateLLMResponse = async (prompt, model) => {
-  const response = await fetch("http://localhost:11434/api/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, prompt, stream: false }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Ollama API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.response || data.output || "";
-};
 
 // Google OAuth routes
 router.get(
