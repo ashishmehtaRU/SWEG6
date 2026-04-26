@@ -394,6 +394,7 @@ router.post("/conversation/:conversationId/message", async (req, res) => {
       "SELECT * FROM conversations WHERE id = ?",
       [conversationId],
     );
+
     if (!conversation) {
       return res.status(404).json({ error: "Conversation not found" });
     }
@@ -401,8 +402,10 @@ router.post("/conversation/:conversationId/message", async (req, res) => {
     const requestedModel = model
       ? model.trim()
       : conversation.model || DEFAULT_LLM_MODEL;
-    const shouldReset =
-      resetConversation === true || requestedModel !== conversation.model;
+
+    // Only reset if the frontend explicitly asks to reset.
+    // Changing models will NOT delete messages anymore.
+    const shouldReset = resetConversation === true;
 
     if (shouldReset) {
       await dbRun("DELETE FROM messages WHERE conversation_id = ?", [
@@ -421,6 +424,7 @@ router.post("/conversation/:conversationId/message", async (req, res) => {
     );
 
     const output = await generateLLMResponse(prompt, requestedModel);
+
     await dbRun(
       "INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)",
       [conversationId, "assistant", output],
@@ -597,6 +601,110 @@ router.get("/reviews", (req, res) => {
       res.json({ reviews: rows });
     },
   );
+});
+
+router.post("/images/generate", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required." });
+    }
+
+    const response = await fetch(
+      "https://router.huggingface.co/nscale/v1/images/generations",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          response_format: "b64_json",
+          prompt,
+          model: "black-forest-labs/FLUX.1-schnell",
+        }),
+      },
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data.error || "Hugging Face image generation failed.",
+      });
+    }
+
+    res.json({
+      image: data.data[0].b64_json,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/math/solve", async (req, res) => {
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required." });
+    }
+
+    const mathPrompt = `
+
+Rules:
+- Solve step by step.
+- Use LaTeX for equations.
+- Use inline math like \\( x = 5 \\).
+- Use display math like \\[ 3x + 7 = 22 \\].
+- Explain each step simply.
+- Do not skip algebra steps.
+- Keep the final answer clearly labeled.
+- You do not need to use all of the tokens, but be thorough in your explanation.
+- Once you have the answer, you can stop and exit. You do not need to keep writing after the final answer is given.
+- Follow all rules above, and dont mention yourself at all you just answer
+
+Problem:
+${prompt}
+`;
+
+    const response = await fetch(
+      "https://router.huggingface.co/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "Qwen/Qwen2-Math-72B-Instruct:featherless-ai",
+          messages: [
+            {
+              role: "user",
+              content: mathPrompt,
+            },
+          ],
+          max_tokens: 1200,
+          temperature: 0.2,
+        }),
+      },
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data.error || "Math model failed.",
+      });
+    }
+
+    res.json({
+      answer: data.choices?.[0]?.message?.content || "No answer returned.",
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;

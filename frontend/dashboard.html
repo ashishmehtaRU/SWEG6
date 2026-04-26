@@ -934,7 +934,161 @@
           width: 100%;
         }
       }
+      .dashboard-tabs {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      .dashboard-tab {
+        border: none;
+        background: #eef4ff;
+        color: #2d3b6b;
+        padding: 14px 22px;
+        border-radius: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .dashboard-tab.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .image-panel {
+        background: #f8f9ff;
+        border: 2px solid #e6e9fb;
+        border-radius: 16px;
+        padding: 24px;
+      }
+
+      .image-result {
+        margin-top: 20px;
+        display: grid;
+        place-items: center;
+        min-height: 320px;
+        background: white;
+        border: 1px dashed #b8c2ef;
+        border-radius: 16px;
+        padding: 20px;
+      }
+
+      .image-result img {
+        max-width: 100%;
+        max-height: 520px;
+        border-radius: 16px;
+        box-shadow: 0 15px 35px rgba(16, 24, 64, 0.18);
+      }
+      .math-answer {
+        width: 100%;
+        background: #ffffff;
+        color: #1f2937;
+        font-family: "Cambria Math", "Times New Roman", serif;
+        font-size: 17px;
+        line-height: 1.8;
+        border-left: 5px solid #667eea;
+        padding: 22px;
+        border-radius: 14px;
+        box-shadow: 0 10px 25px rgba(16, 24, 64, 0.08);
+      }
+      .full-chat-panel {
+        background: #f8f9ff;
+        border: 2px solid #e6e9fb;
+        border-radius: 20px;
+        padding: 24px;
+        min-height: 720px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .full-chat-history {
+        background: white;
+        border: 1px solid #dde3f1;
+        border-radius: 18px;
+        padding: 22px;
+        flex: 1;
+        overflow-y: auto;
+        min-height: 460px;
+        max-height: calc(100vh - 340px);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .full-chat-message {
+        max-width: 88%;
+        padding: 18px;
+        border-radius: 18px;
+        line-height: 1.7;
+        box-shadow: 0 10px 22px rgba(16, 24, 64, 0.08);
+      }
+
+      .full-chat-message.user {
+        align-self: flex-end;
+        background: #eef4ff;
+        color: #1f3c88;
+        border-bottom-right-radius: 5px;
+      }
+
+      .full-chat-message.assistant {
+        align-self: flex-start;
+        background: #eef4ff;
+        color: #1f3c88;
+        border-bottom-left-radius: 5px;
+      }
+
+      .full-chat-message img {
+        max-width: 100%;
+        max-height: 520px;
+        border-radius: 16px;
+        margin-top: 12px;
+        box-shadow: 0 15px 35px rgba(16, 24, 64, 0.18);
+      }
+
+      .math-message {
+        font-family: "Cambria Math", "Times New Roman", serif;
+        font-size: 18px;
+      }
+
+      .full-chat-input-area {
+        display: grid;
+        gap: 12px;
+      }
+
+      .full-chat-input-area textarea {
+        min-height: 110px;
+      }
+
+      .full-chat-input-area .submit-btn {
+        width: fit-content;
+        justify-self: end;
+      }
     </style>
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+          displayMath: [
+            ["$$", "$$"],
+            ["\\[", "\\]"],
+          ],
+        },
+        svg: { fontCache: "global" },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
   </head>
   <body>
     <div class="container">
@@ -957,179 +1111,273 @@
       </div>
 
       <div class="content">
-        <div class="dashboard-grid">
-          <div class="conversation-manager section sidebar">
-            <h3><i class="fa-solid fa-folder-open"></i> Conversations</h3>
-            <div class="conversation-toolbar">
-              <input
-                id="newConversationTitle"
-                type="text"
-                placeholder="Conversation title"
-              />
-              <button class="submit-btn" onclick="createConversation()">
-                New Conversation
-              </button>
+        <div class="dashboard-tabs">
+          <button
+            class="dashboard-tab active"
+            onclick="showTab('chatTab', this)"
+          >
+            <i class="fa-solid fa-comments"></i> Chat
+          </button>
+
+          <button class="dashboard-tab" onclick="showTab('imagesTab', this)">
+            <i class="fa-solid fa-image"></i> Images
+          </button>
+          <button class="dashboard-tab" onclick="showTab('mathTab', this)">
+            <i class="fa-solid fa-square-root-variable"></i> Math
+          </button>
+        </div>
+        <div id="chatTab" class="tab-content active">
+          <div class="dashboard-grid">
+            <div class="conversation-manager section sidebar">
+              <h3><i class="fa-solid fa-folder-open"></i> Conversations</h3>
+              <div class="conversation-toolbar">
+                <input
+                  id="newConversationTitle"
+                  type="text"
+                  placeholder="Conversation title"
+                />
+                <button class="submit-btn" onclick="createConversation()">
+                  New Conversation
+                </button>
+              </div>
+              <div class="conversation-toolbar">
+                <input
+                  id="conversationSearch"
+                  type="text"
+                  placeholder="Search previous conversations"
+                  onkeydown="if (event.key === 'Enter') searchConversations();"
+                />
+                <button class="submit-btn" onclick="searchConversations()">
+                  Search
+                </button>
+                <button
+                  class="clear-btn"
+                  onclick="clearConversationSearch()"
+                  id="clearSearchBtn"
+                  style="display: none"
+                >
+                  Clear
+                </button>
+              </div>
+              <div class="conversation-count" id="conversationCount">
+                Loading conversations...
+              </div>
+              <div class="conversation-list" id="conversationList">
+                <p class="no-history">
+                  No conversations yet. Create one to get started.
+                </p>
+              </div>
             </div>
-            <div class="conversation-toolbar">
-              <input
-                id="conversationSearch"
-                type="text"
-                placeholder="Search previous conversations"
-                onkeydown="if (event.key === 'Enter') searchConversations();"
-              />
-              <button class="submit-btn" onclick="searchConversations()">
-                Search
-              </button>
-              <button
-                class="clear-btn"
-                onclick="clearConversationSearch()"
-                id="clearSearchBtn"
-                style="display: none"
-              >
-                Clear
-              </button>
-            </div>
-            <div class="conversation-count" id="conversationCount">
-              Loading conversations...
-            </div>
-            <div class="conversation-list" id="conversationList">
-              <p class="no-history">
-                No conversations yet. Create one to get started.
-              </p>
+
+            <div class="chat-panel section">
+              <div class="chat-header">
+                <div>
+                  <div class="conversation-title" id="activeConversationTitle">
+                    No conversation selected
+                  </div>
+                  <div
+                    class="conversation-status"
+                    id="activeConversationStatus"
+                  >
+                    Choose or create a conversation to begin.
+                  </div>
+                </div>
+                <div class="model-selector-container">
+                  <label class="model-selector-label">
+                    <i class="fa-solid fa-brain"></i> Model
+                  </label>
+                  <select
+                    class="model-selector-dropdown"
+                    id="modelSelector"
+                    onchange="handleModelChange()"
+                  >
+                    <optgroup label="Local Models (Ollama)">
+                      <option value="llama3:8b" data-type="local">
+                        🔵 Llama 3 8B
+                      </option>
+                      <option value="gemma3:4b" data-type="local">
+                        🔵 Gemma 3 4B
+                      </option>
+                      <option value="qwen3.5:4b" data-type="local">
+                        🔵 Qwen 3.5 4B
+                      </option>
+                    </optgroup>
+                    <optgroup label="Public Models (Cloud)">
+                      <option value="gemini-2.5-flash" data-type="public">
+                        ☁️ Gemini 2.5 Flash
+                      </option>
+                      <option value="llama-3.1-8b-instant" data-type="public">
+                        ☁️ Groq Llama 3.1 8B Instant
+                      </option>
+                      <option value="openai/gpt-oss-120b" data-type="public">
+                        ☁️ ChatGPT
+                      </option>
+                    </optgroup>
+                  </select>
+                </div>
+                <button
+                  class="clear-btn"
+                  onclick="resetConversation()"
+                  disabled
+                  id="resetBtn"
+                >
+                  Restart
+                </button>
+              </div>
+
+              <div class="chat-history" id="conversationHistory">
+                <p class="no-history">
+                  Select a conversation to view history here.
+                </p>
+              </div>
+
+              <div class="chat-input-area">
+                <textarea
+                  id="promptInput"
+                  placeholder="Enter your prompt here... (e.g., 'Write a poem about nature')"
+                ></textarea>
+                <button
+                  class="submit-btn"
+                  onclick="submitPrompt()"
+                  id="submitBtn"
+                >
+                  Send
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="chat-panel section">
+          <div class="section">
+            <h3><i class="fa-solid fa-star"></i> Reviews</h3>
+            <div class="review-form">
+              <h4>Leave a Review</h4>
+
+              <div class="form-group">
+                <label for="reviewAuthor">Author</label>
+                <input
+                  id="reviewAuthor"
+                  type="text"
+                  placeholder="Your name"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label><strong>Rating:</strong></label>
+                <div id="ratingStars" class="star-rating">
+                  <span class="star" data-value="1">☆</span>
+                  <span class="star" data-value="2">☆</span>
+                  <span class="star" data-value="3">☆</span>
+                  <span class="star" data-value="4">☆</span>
+                  <span class="star" data-value="5">☆</span>
+                </div>
+                <p class="rating-feedback" id="selectedRating">
+                  No rating selected
+                </p>
+              </div>
+
+              <div class="form-group">
+                <label for="reviewText"><strong>Your Review:</strong></label>
+                <textarea
+                  id="reviewText"
+                  rows="4"
+                  placeholder="Share your ideas or feedback..."
+                ></textarea>
+              </div>
+
+              <div class="review-buttons">
+                <button
+                  class="submit-btn"
+                  onclick="submitReview()"
+                  id="submitReviewBtn"
+                >
+                  Submit Review
+                </button>
+                <button class="clear-btn" onclick="clearReviewForm()">
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <div class="reviews-section">
+              <h4>Recent Reviews</h4>
+              <div id="reviewsList" class="reviews-list">
+                <p class="no-reviews">No recent reviews yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="imagesTab" class="tab-content">
+          <div class="full-chat-panel section">
             <div class="chat-header">
               <div>
-                <div class="conversation-title" id="activeConversationTitle">
-                  No conversation selected
+                <div class="conversation-title">
+                  <i class="fa-solid fa-image"></i> Image Generator
                 </div>
-                <div class="conversation-status" id="activeConversationStatus">
-                  Choose or create a conversation to begin.
+                <div class="conversation-status">
+                  Generate images in a back-and-forth visual chat.
                 </div>
               </div>
-              <div class="model-selector-container">
-                <label class="model-selector-label">
-                  <i class="fa-solid fa-brain"></i> Model
-                </label>
-                <select
-                  class="model-selector-dropdown"
-                  id="modelSelector"
-                  onchange="handleModelChange()"
-                >
-                  <optgroup label="Local Models (Ollama)">
-                    <option value="llama3:8b" data-type="local">
-                      🔵 Llama 3 8B
-                    </option>
-                    <option value="gemma3:4b" data-type="local">
-                      🔵 Gemma 3 4B
-                    </option>
-                    <option value="qwen3.5:4b" data-type="local">
-                      🔵 Qwen 3.5 4B
-                    </option>
-                  </optgroup>
-                  <optgroup label="Public Models (Cloud)">
-                    <option value="gemini-2.5-flash" data-type="public">
-                      ☁️ Gemini 2.5 Flash
-                    </option>
-                    <option value="llama-3.1-8b-instant" data-type="public">
-                      ☁️ Groq Llama 3.1 8B Instant
-                    </option>
-                    <option value="openai/gpt-oss-120b" data-type="public">
-                      ☁️ ChatGPT
-                    </option>
-                  </optgroup>
-                </select>
-              </div>
-              <button
-                class="clear-btn"
-                onclick="resetConversation()"
-                disabled
-                id="resetBtn"
-              >
-                Restart
+              <button class="clear-btn" onclick="clearImageChat()">
+                Clear
               </button>
             </div>
 
-            <div class="chat-history" id="conversationHistory">
-              <p class="no-history">
-                Select a conversation to view history here.
-              </p>
+            <div class="full-chat-history" id="imageChatHistory">
+              <p class="no-history">Describe an image to start generating.</p>
             </div>
 
-            <div class="chat-input-area">
+            <div id="imageStatus"></div>
+
+            <div class="full-chat-input-area">
               <textarea
-                id="promptInput"
-                placeholder="Enter your prompt here... (e.g., 'Write a poem about nature')"
+                id="imagePromptInput"
+                placeholder='Describe an image... e.g., "Astronaut riding a horse"'
               ></textarea>
+
               <button
                 class="submit-btn"
-                onclick="submitPrompt()"
-                id="submitBtn"
+                id="generateImageBtn"
+                onclick="generateImage()"
               >
-                Send
+                Generate Image
               </button>
             </div>
           </div>
         </div>
-
-        <div class="section">
-          <h3><i class="fa-solid fa-star"></i> Reviews</h3>
-          <div class="review-form">
-            <h4>Leave a Review</h4>
-
-            <div class="form-group">
-              <label for="reviewAuthor">Author</label>
-              <input
-                id="reviewAuthor"
-                type="text"
-                placeholder="Your name"
-                required
-              />
-            </div>
-
-            <div class="form-group">
-              <label><strong>Rating:</strong></label>
-              <div id="ratingStars" class="star-rating">
-                <span class="star" data-value="1">☆</span>
-                <span class="star" data-value="2">☆</span>
-                <span class="star" data-value="3">☆</span>
-                <span class="star" data-value="4">☆</span>
-                <span class="star" data-value="5">☆</span>
+        <div id="mathTab" class="tab-content">
+          <div class="full-chat-panel section">
+            <div class="chat-header">
+              <div>
+                <div class="conversation-title">
+                  <i class="fa-solid fa-square-root-variable"></i> Math Solver
+                </div>
+                <div class="conversation-status">
+                  Step-by-step math help with LaTeX formatting.
+                </div>
               </div>
-              <p class="rating-feedback" id="selectedRating">
-                No rating selected
-              </p>
+              <button class="clear-btn" onclick="clearMathChat()">Clear</button>
             </div>
 
-            <div class="form-group">
-              <label for="reviewText"><strong>Your Review:</strong></label>
+            <div class="full-chat-history math-message" id="mathChatHistory">
+              <p class="no-history">Ask a math problem to begin.</p>
+            </div>
+
+            <div id="mathStatus"></div>
+
+            <div class="full-chat-input-area">
               <textarea
-                id="reviewText"
-                rows="4"
-                placeholder="Share your ideas or feedback..."
+                id="mathPromptInput"
+                placeholder="Example: Solve 3x + 7 = 22 step by step"
               ></textarea>
-            </div>
 
-            <div class="review-buttons">
               <button
                 class="submit-btn"
-                onclick="submitReview()"
-                id="submitReviewBtn"
+                id="mathSubmitBtn"
+                onclick="submitMathPrompt()"
               >
-                Submit Review
+                Solve Math
               </button>
-              <button class="clear-btn" onclick="clearReviewForm()">
-                Clear
-              </button>
-            </div>
-          </div>
-
-          <div class="reviews-section">
-            <h4>Recent Reviews</h4>
-            <div id="reviewsList" class="reviews-list">
-              <p class="no-reviews">No recent reviews yet</p>
             </div>
           </div>
         </div>
@@ -1137,6 +1385,176 @@
     </div>
 
     <script>
+      let mathIsSubmitting = false;
+      async function submitMathPrompt() {
+        if (mathIsSubmitting) return;
+        mathIsSubmitting = true;
+        const prompt = document.getElementById("mathPromptInput").value.trim();
+        const btn = document.getElementById("mathSubmitBtn");
+        const status = document.getElementById("mathStatus");
+        const history = document.getElementById("mathChatHistory");
+
+        if (!prompt) {
+          alert("Please enter a math problem.");
+          return;
+        }
+
+        if (history.querySelector(".no-history")) {
+          history.innerHTML = "";
+        }
+
+        appendMathMessage("user", escapeHtml(prompt));
+
+        document.getElementById("mathPromptInput").value = "";
+        btn.disabled = true;
+        status.innerHTML = '<p class="loading">Solving math problem...</p>';
+
+        try {
+          const response = await fetch(`${API_BASE}/math/solve`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to solve math problem.");
+          }
+
+          appendMathMessage("assistant", formatMathAnswer(data.answer));
+          status.innerHTML = "";
+
+          if (window.MathJax) {
+            MathJax.typesetPromise();
+          }
+        } catch (error) {
+          status.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+        } finally {
+          mathIsSubmitting = false;
+          btn.disabled = false;
+        }
+      }
+
+      function appendMathMessage(role, content) {
+        const history = document.getElementById("mathChatHistory");
+        const msg = document.createElement("div");
+
+        msg.className = `full-chat-message ${role} ${role === "assistant" ? "math-message" : ""}`;
+        msg.innerHTML = `
+    <div class="history-meta"><strong>${role === "user" ? "You" : "Math AI"}</strong></div>
+    <div>${content}</div>
+  `;
+
+        history.appendChild(msg);
+        history.scrollTop = history.scrollHeight;
+      }
+
+      function formatMathAnswer(text) {
+        return (
+          escapeHtml(text)
+            // \boxed{\frac{16}{3}  -> \boxed{\frac{16}{3}}
+            .replace(
+              /\\boxed\{(\\frac\{[^{}]+\}\{[^{}]+\})(?!\})/g,
+              "\\boxed{$1}",
+            )
+
+            // Format code blocks
+            .replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>")
+
+            // Line breaks and bold
+            .replace(/\n/g, "<br>")
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        );
+      }
+
+      function clearMathChat() {
+        document.getElementById("mathPromptInput").value = "";
+        document.getElementById("mathStatus").innerHTML = "";
+        document.getElementById("mathChatHistory").innerHTML =
+          '<p class="no-history">Ask a math problem to begin.</p>';
+      }
+      function showTab(tabId, clickedButton) {
+        document.querySelectorAll(".tab-content").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+
+        document.querySelectorAll(".dashboard-tab").forEach((btn) => {
+          btn.classList.remove("active");
+        });
+
+        document.getElementById(tabId).classList.add("active");
+        clickedButton.classList.add("active");
+      }
+
+      async function generateImage() {
+        const prompt = document.getElementById("imagePromptInput").value.trim();
+        const btn = document.getElementById("generateImageBtn");
+        const status = document.getElementById("imageStatus");
+        const history = document.getElementById("imageChatHistory");
+
+        if (!prompt) {
+          alert("Please enter an image prompt.");
+          return;
+        }
+
+        if (history.querySelector(".no-history")) {
+          history.innerHTML = "";
+        }
+
+        appendImageMessage("user", escapeHtml(prompt));
+
+        document.getElementById("imagePromptInput").value = "";
+        btn.disabled = true;
+        status.innerHTML = '<p class="loading">Generating image...</p>';
+
+        try {
+          const response = await fetch(`${API_BASE}/images/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to generate image.");
+          }
+
+          appendImageMessage(
+            "assistant",
+            `Generated image:<br><img src="data:image/png;base64,${data.image}" alt="Generated image" />`,
+          );
+
+          status.innerHTML = "";
+        } catch (error) {
+          status.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      function appendImageMessage(role, content) {
+        const history = document.getElementById("imageChatHistory");
+        const msg = document.createElement("div");
+
+        msg.className = `full-chat-message ${role}`;
+        msg.innerHTML = `
+    <div class="history-meta"><strong>${role === "user" ? "You" : "Image AI"}</strong></div>
+    <div>${content}</div>
+  `;
+
+        history.appendChild(msg);
+        history.scrollTop = history.scrollHeight;
+      }
+
+      function clearImageChat() {
+        document.getElementById("imagePromptInput").value = "";
+        document.getElementById("imageStatus").innerHTML = "";
+        document.getElementById("imageChatHistory").innerHTML =
+          '<p class="no-history">Describe an image to start generating.</p>';
+      }
+
       // Check authentication on page load (optional)
       async function checkAuth() {
         try {
@@ -1190,8 +1608,14 @@
 
       // Model selector helpers
       function handleModelChange() {
-        const selectedModel = document.getElementById("modelSelector").value;
+        const selectedModel = getSelectedModel();
         console.log("Model changed to:", selectedModel);
+
+        const statusEl = document.getElementById("activeConversationStatus");
+
+        if (currentConversation) {
+          statusEl.textContent = `Conversation continues. Next response will use ${selectedModel}.`;
+        }
       }
 
       function getSelectedModel() {
@@ -1209,14 +1633,40 @@
           return;
         }
 
-        if (!currentConversation) {
-          alert("Please select or create a conversation first.");
-          return;
-        }
-
         submitBtn.disabled = true;
 
         try {
+          if (!currentConversation) {
+            const title =
+              promptText.length > 40
+                ? promptText.slice(0, 40) + "..."
+                : promptText;
+
+            const createRes = await fetch(`${API_BASE}/conversations`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                user_id: currentUser.id,
+                title,
+                model: selectedModel,
+              }),
+            });
+
+            const createData = await createRes.json();
+
+            if (!createRes.ok) {
+              throw new Error(
+                createData.error || "Unable to auto-create conversation",
+              );
+            }
+
+            currentConversation = {
+              id: createData.conversationId,
+              title,
+              model: selectedModel,
+            };
+          }
+
           const response = await fetch(
             `${API_BASE}/conversation/${currentConversation.id}/message`,
             {
@@ -1230,14 +1680,15 @@
           );
 
           const data = await response.json();
-          if (response.ok) {
-            document.getElementById("promptInput").value = "";
-            await loadConversationDetails(currentConversation.id);
-          } else {
-            alert(data.error || "Failed to generate response.");
+
+          if (!response.ok) {
+            throw new Error(data.error || "Failed to generate response.");
           }
+
+          document.getElementById("promptInput").value = "";
+          await loadConversationDetails(currentConversation.id);
         } catch (error) {
-          alert("Connection error. Is the server running?");
+          alert(error.message || "Connection error. Is the server running?");
         } finally {
           submitBtn.disabled = false;
           document.getElementById("promptInput").focus();
