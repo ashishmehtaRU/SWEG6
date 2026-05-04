@@ -13,23 +13,23 @@ Feature: Local model support
     Then I should see a local model option in the model selection list
 
   Scenario: User selects a local model and submits a prompt
-    When I select "Ollama" as the backend model
+    When I select "llama3:8b" as the backend model
     And I enter "What is 2+2?" into the prompt box
     And I submit the prompt
     Then the request should be routed to the local model server
     And a response should be displayed
 
   Scenario: User can switch from cloud model to local model
-    Given I selected "GPT" as the backend model
-    When I switch the backend model to "Ollama"
+    Given I selected "gemini-2.5-flash" as the backend model
+    When I switch the backend model to "gemma3:4b"
     And I enter "Give me a short summary of gravity" into the prompt box
     And I submit the prompt
-    Then the request should use "Ollama"
+    Then the request should use "gemma3:4b"
     And a response should be displayed
 
   Scenario: User sees an error when the local model cannot run
     Given the local model server is offline
-    When I select "Ollama" as the backend model
+    When I select "qwen3.5:4b" as the backend model
     And I enter "Test prompt" into the prompt box
     And I submit the prompt
     Then I should see a local model error message
