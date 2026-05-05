@@ -1,4 +1,8 @@
-Feature 1: View past conversation history. [PR #14](https://github.com/ashishmehtaRU/SWEG6/pull/14)
-Feature 2: Continue a previous conversation. [PR #14](https://github.com/ashishmehtaRU/SWEG6/pull/14)
-Feature 3: Notify user if an account with the same email already exists during signup. [PR #14](https://github.com/ashishmehtaRU/SWEG6/pull/14)
-Feature 4: CI/CD setup for coding style using ESLint. [PR #15](https://github.com/ashishmehtaRU/SWEG6/pull/15)
+Feature 5: Generate multiple responses (3 outputs) for a single prompt.
+Feature 6: Select preferred response from multiple outputs.
+Feature 7: Continue conversation with context-aware responses.
+Feature 8: Backend LLM model selection (user chooses model).
+Feature 9: Support for local LLM models (e.g., Ollama).
+Feature 10: Integration of public LLM APIs (GPT, Gemini, Claude).
+Feature 11: Math question handling with step-by-step solutions.
+Feature 12: Weather query handling with external API integration.
