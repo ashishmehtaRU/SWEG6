@@ -1,17 +1,54 @@
-const { Then } = require("@cucumber/cucumber");
+const { Given, Then } = require("@cucumber/cucumber");
 const assert = require("assert");
 
-Then("I should see response 1", async function () {
-  const text = await this.page.content();
-  assert.ok(text.length > 0);
+async function stubAlert(page) {
+  await page.evaluate(() => {
+    window.__lastAlert = null;
+    window.alert = (msg) => {
+      window.__lastAlert = String(msg);
+    };
+  });
+}
+
+Given("the public model API is failing", async function () {
+  await stubAlert(this.page);
+
+  await this.page.setRequestInterception(true);
+
+  this.page.removeAllListeners("request");
+  this.page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      request.url().includes("/api/conversation/") &&
+      request.url().includes("/message")
+    ) {
+      request.respond({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "Gemini API error: mocked failure",
+        }),
+      });
+      return;
+    }
+    request.continue();
+  });
 });
 
-Then("I should see response 2", async function () {
-  const text = await this.page.content();
-  assert.ok(text.length > 0);
+Then("the request should be routed to {string}", async function (model) {
+  assert.strictEqual(this.selectedModel, model);
 });
 
-Then("I should see response 3", async function () {
-  const text = await this.page.content();
-  assert.ok(text.length > 0);
+Then("I should see an API failure message", async function () {
+  await this.page.waitForFunction(() => {
+    return !!window.__lastAlert;
+  }, { timeout: 10000 });
+
+  const msg = await this.page.evaluate(() => window.__lastAlert || "");
+  assert.ok(
+    msg.toLowerCase().includes("error") ||
+      msg.toLowerCase().includes("failed") ||
+      msg.toLowerCase().includes("connection error"),
+    `Expected API failure alert, got: ${msg}`
+  );
 });
