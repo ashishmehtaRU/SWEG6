@@ -2,31 +2,27 @@ name: ESLint CI
 
 on:
   push:
-    branches:
-      - pres
-      - ci-eslint-setup
+    branches: [ main, develop ]
   pull_request:
+    branches: [ main, develop ]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: "Backend code"
-    env:
-      PUPPETEER_SKIP_DOWNLOAD: "true"
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 18
 
       - name: Install dependencies
         run: npm install
+        working-directory: ./Backend code
 
       - name: Run ESLint
         run: npm run lint
+        working-directory: ./Backend code
